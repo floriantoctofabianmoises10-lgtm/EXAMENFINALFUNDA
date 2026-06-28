@@ -458,7 +458,10 @@ namespace PROYECTOFINAL
             {
                 Console.Write("¿Desea comprobante? (SI/NO): ");
                 if (Console.ReadLine().ToUpper() == "SI" || Console.ReadLine().ToUpper() == "S")
-                { 
+                {
+                }
+            }
+        }
         public static void TIPOCOMPROBANTE(ref string cliente, string listaProductos, double subtotal, string metodoPago, double costoDelivery, string direccion, double totalFinal)
        
         {
@@ -595,7 +598,102 @@ namespace PROYECTOFINAL
                 Console.WriteLine("Entendido. Puede venir a recoger su pedido a nuestra tienda cuando esté libre");
             }
         }
-        public static int NUMBOLETA()
+        
+        // MÉTODO DE PAGO
+        public static void METODOPAGO(double totalPagar, string historial)
+        {
+            double saldoPendiente = totalPagar;
+
+            while (saldoPendiente > 0)
+            {
+                Console.WriteLine($"\nSaldo restante: S/{saldoPendiente:F2}");
+                Console.WriteLine("1. Yape/Transferencia | 2. Efectivo | 3. Tarjeta (+4%) | 4. Crédito/Fiado");
+                string opcion = Console.ReadLine();
+
+                Console.Write("Ingrese monto a pagar: ");
+                double monto = double.Parse(Console.ReadLine());
+
+                // Si es tarjeta, aplicamos el 4% de recargo al monto
+                if (opcion == "3") monto *= 1.04;
+
+                // Si es crédito, guardamos en el archivo de deudas
+                if (opcion == "4")
+                {
+                    string deuda = $"{DateTime.Now.ToShortDateString()}|{monto}|Credito|Vence: {DateTime.Now.AddDays(7):dd/MM/yyyy}\n";
+                    File.AppendAllText("DEUDAS.txt", deuda);
+                    Console.WriteLine("Registro de crédito guardado.");
+                }
+
+                saldoPendiente -= monto;
+            }
+            Console.WriteLine("¡Pago completado con éxito!");
+            TIPOCOMPROBANTE(totalPagar, historial);
+
+        }
+        // TIPO DE COMPROBANTE //branddy
+
+        public static void TIPOCOMPROBANTE(double total, string historial)
+        {
+            // Emite Boleta o Factura 
+            Console.WriteLine("\nSeleccione tipo de comprobante: 1. Boleta | 2. Factura");
+            string op = Console.ReadLine();
+
+            // Verificamos si existe correlativo.txt
+            if (!File.Exists("CORRELATIVO.txt")) File.WriteAllText("CORRELATIVO.txt", "1");
+
+            int num = int.Parse(File.ReadAllText("CORRELATIVO.txt"));
+            string tipo = (op == "1") ? "BOLETA" : "FACTURA";
+
+            // Generamos el nombre del archivo con el año actual
+            string anio = DateTime.Now.Year.ToString();
+            string nombreArchivo = $"{tipo}_{anio}-{num:000}.txt";
+
+            // 1. Agradecimiento
+            // 2. Promoción de descuento (si aplica)
+            // 3. Invitación a sorteos
+            string mensajeDescuento = (total >= 30)
+                ? "\n¡FELICIDADES! Por su compra mayor a S/30, accede a un 5% de descuento en su próxima compra presentando este comprobante"
+                : "\nNota: Acumule S/30 en sus compras para acceder a un 5% de descuento en su próxima visita.";
+
+            string contenido = $"--- {tipo} ---\n" +
+                               $"SERIE: {anio}-001\n" +
+                               $"CORRELATIVO: {num:000}\n" +
+                               $"FECHA: {DateTime.Now}\n" +
+                               $"{historial}\n" +
+                               $"TOTAL: S/{total:F2}\n" +
+                               $"------------------------------------------\n" +
+                               $"{mensajeDescuento}\n" +
+                               $"¡Guarde su {tipo.ToLower()}, se vienen grandes sorteos!\n" +
+                               $"Muchas gracias por su compra en la Bodega La Nona, esperamos verlo pronto";
+
+            File.WriteAllText(nombreArchivo, contenido);
+
+            // Actualizamos el correlativo para la próxima venta
+            File.WriteAllText("CORRELATIVO.txt", (num + 1).ToString());
+            Console.WriteLine($"Comprobante {nombreArchivo} generado con éxito.");
+        }
+
+        // DELIVERY //branddy
+
+        public static void DELIVERY(ref double total)
+        {
+            // Ofrece delivery con tarifa fija o recoge en tienda
+            Console.Write("\n¿Usted desea solicitar delivery? (S/N): ");
+            string respuesta = Console.ReadLine().ToUpper();
+
+            if (respuesta == "S" || respuesta == "SI")
+            {
+                double costoEnvio = 3.00;
+                total += costoEnvio;
+                Console.WriteLine("Se le incrementará 3 soles por concepto de envío hasta su destino.");
+                Console.WriteLine($"El monto total de su pedido ahora es: S/{total:F2}");
+            }
+            else
+            {
+                Console.WriteLine("Entendido. Puede venir a recoger su pedido a nuestra tienda cuando esté libre.");
+            }
+        }
+        public static int NUMBOLETA() //branddy
         {
             string archivo = "BASEDATOS.txt";
             if (!File.Exists(archivo))
@@ -607,7 +705,7 @@ namespace PROYECTOFINAL
             File.WriteAllText(archivo, contador.ToString());
             return contador;
         }
-        public static int NUMFACTURA()
+        public static int NUMFACTURA() //branddy
         {
             string archivo = "contador_factura.txt";
             if (!File.Exists(archivo))
@@ -619,7 +717,7 @@ namespace PROYECTOFINAL
             File.WriteAllText(archivo, contador.ToString());
             return contador;
         }
-        public static void HISTORIALVENTA()
+        public static void HISTORIALVENTA() //branddy
         {
             Console.WriteLine("\n==============================");
             Console.WriteLine("    HISTORIAL DE VENTAS");
@@ -649,14 +747,40 @@ namespace PROYECTOFINAL
                 }
                 Console.WriteLine("------------------------------");
                 Console.WriteLine("Fin del historial.");
+
+            // Lee todos los archivos de comprobantes generados 
+
+            Console.WriteLine("\n========== HISTORIAL DE VENTAS DEL DÍA ==========");
+
+            // Obtenemos todos los archivos que empiecen con BOLETA o FACTURA
+            string[] archivosBoletas = Directory.GetFiles(Directory.GetCurrentDirectory(), "BOLETA_*.txt");
+            string[] archivosFacturas = Directory.GetFiles(Directory.GetCurrentDirectory(), "FACTURA_*.txt");
+
+            List<string> todosLosArchivos = new List<string>();
+            todosLosArchivos.AddRange(archivosBoletas);
+            todosLosArchivos.AddRange(archivosFacturas);
+
+            if (todosLosArchivos.Count == 0)
+            {
+                Console.WriteLine("No se han registrado ventas aún.");
+            }
+            else
+            {
+                foreach (string archivo in todosLosArchivos)
+                {
+                    Console.WriteLine($"\n--- Venta registrada en: {Path.GetFileName(archivo)} ---");
+                    string contenido = File.ReadAllText(archivo);
+                    Console.WriteLine(contenido);
+                    Console.WriteLine("------------------------------------------");
+                }
             }
 
             Console.WriteLine("\nPresione cualquier tecla para volver al menú...");
             Console.ReadKey();
-        
+
+        }
         }
 
-        // ESTADISTICA DE VENTAS
         public static void ESTADISTICAS()
         {
             //CREACIÓN DE ESTADITICAS
