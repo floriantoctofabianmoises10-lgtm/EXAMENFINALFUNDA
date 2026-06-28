@@ -349,16 +349,15 @@ namespace PROYECTOFINAL
             bool HVENTA = false;
             double IMPORTE=0;
             string HISTORIAl = "";
-            string CLAVE = Dato[1] + " (" + UNIDAD + ")"; // PARA GUARDAR EN EL DICCIONARIO
+            string CLAVE = Dato[1] + " (" + UNIDAD + ")"; 
             if (Cantidad <= STOCK)
             {
                 Console.WriteLine("Stock Disponible...");
                 STOCK = STOCK - Cantidad;
                 HVENTA = true;
                 Dato[4] = STOCK.ToString();
-                //REEMPLAZAMOS LA LINEA SIN MODIFICAR
                 linea[indice] = string.Join("|", Dato);
-                //CALCULO DEL IMPORTE
+                
                 IMPORTE = Cantidad * PRECIO;
                 HISTORIAl += "\nPRODUCTO: " + Dato[1] + " | " + Dato[2] + " | " + Dato[3] +
                             "\nCANTIDAD: " + Cantidad +
@@ -383,74 +382,92 @@ namespace PROYECTOFINAL
             }
             return (HVENTA, IMPORTE, HISTORIAl);
         }
-        public static void METODOPAGO() 
+        public static void TIPOCOMPROBANTE(ref string cliente, string listaProductos, double subtotal, string metodoPago, double costoDelivery, string direccion, double totalFinal)
         {
-            //DEBE TENER 4 METODOS DE PAGO: YAPE, TRANFERENCIA, EFECTIVO,CREDITO(NORMAL Y FIADO(MAX 7), TARJETA(+4%). 
-            //DEBE SER TENER LA CAPACIDAD DE PAGAR MIXTO(USANDO MINIMO 2 METODO DIFERENTES DE PAGO) 
-            //EFECTIVO DEBE TENER LA CAPACIDAD QUE SI DESEA PAGAR O DAR UN ADELANTO DEBEN GUARDAR EN EL MISMO ARCHIVO TXT DE DEUDAS
-            //LOS ADELANTOS SE DEBEN GUARDAR EN EL MISMO ARCHIVO TXT DE DEUDAS.
-            //CREDITO TAMBIEN DEBE GENERARA Y GUARDAR LA INFORMACIÓN EN EL MISMO TXT DE DEUDAS.
-            //A CREDITO SE LE DEBEN PONER DÍAS DE INICIO Y VENCIMIENTO
-            //SOLO SI EL PAGO ESTÁ COMPLETO O EL METODO DE PAGO ES TARJETA O ES YAPE/TRANSFERENCIA, SE LE DEBE LLAMAR A LA OPCION DE SI DESEA UN TIPO COMPROBANTE
-            // SE DEBE GUARDAR UN HISTORIALES
+            Console.WriteLine("Escribe 'SALIR' en cualquier momento para cancelar\n");
+            Console.WriteLine("==============================");
+            Console.WriteLine("ELIJA SU TIPO DE COMPROBANTE: ");
+            Console.WriteLine("1. BOLETA");
+            Console.WriteLine("2. FACTURA");
+            Console.Write("Elija una opción: ");
+
+            string input = Console.ReadLine();
+            if (input.ToUpper() == "SALIR") return;
+
+            int OPC2;
+            while (!int.TryParse(input, out OPC2) || OPC2 < 1 || OPC2 > 2)
+            {
+                Console.WriteLine("Ingrese una opción válida (1 o 2): ");
+                input = Console.ReadLine();
+                if (input.ToUpper() == "SALIR") return;
+            }
+
+            string anio = DateTime.Now.Year.ToString();
+            string mensajeMarketing = (totalFinal >= 30)
+                ? "\n¡FELICIDADES! Por su compra mayor a S/30, accede a un 5% de descuento en su próxima compra."
+                : "\nNota: Acumule S/30 en sus compras para acceder a un 5% de descuento en su próxima visita.";
+
+            switch (OPC2)
+            {
+                case 1:
+                    int numeroBoleta = ObtenerNumeroBoleta();
+                    string archivoBoleta = "BOLETA_" + cliente.Replace(" ", "") + "_" + anio + "-" + numeroBoleta.ToString("000") + ".txt";
+                    using (StreamWriter sw = new StreamWriter(archivoBoleta, true))
+                    {
+                        sw.WriteLine("==============================");
+                        sw.WriteLine("       BOLETA DE VENTA        ");
+                        sw.WriteLine("==============================");
+                        sw.WriteLine("N° Boleta: " + anio + "-" + numeroBoleta.ToString("000"));
+                        sw.WriteLine("Fecha: " + DateTime.Now);
+                        sw.WriteLine("Cliente: " + cliente);
+                        sw.WriteLine(listaProductos);
+                        sw.WriteLine("Subtotal: S/ " + subtotal);
+                        sw.WriteLine("Método de pago: " + metodoPago);
+                        sw.WriteLine("Delivery: S/ " + costoDelivery);
+                        sw.WriteLine("Dirección: " + direccion);
+                        sw.WriteLine("TOTAL: S/ " + totalFinal);
+                        sw.WriteLine("------------------------------");
+                        sw.WriteLine(mensajeMarketing);
+                        sw.WriteLine("---Muchas gracias por su compra en la Bodega La Nona---");
+                        sw.WriteLine("==============================");
+                    }
+                    break;
+                case 2:
+                    int numeroFactura = ObtenerNumeroFactura();
+                    string archivoFactura = "FACTURA_" + cliente.Replace(" ", "") + "_" + anio + "-" + numeroFactura.ToString("000") + ".txt";
+                    using (StreamWriter sw2 = new StreamWriter(archivoFactura, true))
+                    {
+                        sw2.WriteLine("==============================");
+                        sw2.WriteLine("       FACTURA DE VENTA       ");
+                        sw2.WriteLine("==============================");
+                        sw2.WriteLine("N° Factura: " + anio + "-" + numeroFactura.ToString("000"));
+                        sw2.WriteLine("Fecha: " + DateTime.Now);
+                        sw2.WriteLine("Nombre: " + cliente);
+                        sw2.WriteLine(listaProductos);
+                        sw2.WriteLine("TOTAL: S/ " + totalFinal);
+                        sw2.WriteLine("---Muchas gracias por su compra en la Bodega La Nona---");
+                        sw2.WriteLine("==============================");
+                    }
+                    break;
+            }
+            Console.WriteLine("Comprobante emitido con éxito.");
         }
-
-        // DELIVERY //branddy
-
-        public static void DELIVERY(ref double total)
+        public static int ObtenerNumeroBoleta()
         {
-            // Ofrece delivery con tarifa fija o recoge en tienda
-            Console.Write("\n¿Usted desea solicitar delivery? (S/N): ");
-            string respuesta = Console.ReadLine().ToUpper();
-
-            if (respuesta == "S" || respuesta == "SI")
-            {
-                double costoEnvio = 3.00;
-                total += costoEnvio;
-                Console.WriteLine("Se le incrementará 3 soles por concepto de envío hasta su destino.");
-                Console.WriteLine($"El monto total de su pedido ahora es: S/{total:F2}");
-            }
-            else
-            {
-                Console.WriteLine("Entendido. Puede venir a recoger su pedido a nuestra tienda cuando esté libre.");
-            }
-        }
-        public static int NUMBOLETA() //branddy
-        {
-            string archivo = "BASEDATOS.txt";
-            if (!File.Exists(archivo))
-            {
-                File.WriteAllText(archivo, "0");
-            }
-            int contador = int.Parse(File.ReadAllText(archivo));
-            contador++;
-            File.WriteAllText(archivo, contador.ToString());
+            if (!File.Exists("BASEDATOS.txt")) File.WriteAllText("BASEDATOS.txt", "0");
+            int contador = int.Parse(File.ReadAllText("BASEDATOS.txt")) + 1;
+            File.WriteAllText("BASEDATOS.txt", contador.ToString());
             return contador;
         }
-        public static int NUMFACTURA() //branddy
+
+        public static int ObtenerNumeroFactura()
         {
-            string archivo = "contador_factura.txt";
-            if (!File.Exists(archivo))
-            {
-                File.WriteAllText(archivo, "0");
-            }
-            int contador = int.Parse(File.ReadAllText(archivo));
-            contador++;
-            File.WriteAllText(archivo, contador.ToString());
+            if (!File.Exists("contador_factura.txt")) File.WriteAllText("contador_factura.txt", "0");
+            int contador = int.Parse(File.ReadAllText("contador_factura.txt")) + 1;
+            File.WriteAllText("contador_factura.txt", contador.ToString());
             return contador;
         }
-        public static void HISTORIALVENTA()
-        {
 
-            Console.WriteLine("\nPresione cualquier tecla para volver al menú...");
-            Console.ReadKey();
-        }
-        }
-
-        public static void ESTADISTICAS()
-        {
-            //CREACIÓN DE ESTADITICAS
-        }
         public static void CIERRECAJA()
         {
             //CREACIÓN DE CIERRE DE CAJA, CON ARCHIVO TXT
