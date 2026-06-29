@@ -462,23 +462,324 @@ namespace PROYECTOFINAL
         //REGISTRAR COMPRAS
         public static void AGREGARPROD()
         {
+            string archivo = "BASEDATOS.txt";
 
+            if (!File.Exists(archivo))
+            {
+                File.WriteAllText(archivo, "");
+            }
+
+            string[] lineas = File.ReadAllLines(archivo);
+            int nuevoID = 1;
+
+            foreach (string linea in lineas)
+            {
+                string[] datos = linea.Split('|');
+
+                if (datos.Length >= 7 && int.TryParse(datos[0].Trim(), out int id))
+                {
+                    if (id >= nuevoID)
+                    {
+                        nuevoID = id + 1;
+                    }
+                }
+            }
+
+            Console.WriteLine("========== AGREGAR PRODUCTO ==========");
+            Console.WriteLine("Escribe 'SALIR' para cancelar.");
+
+            Console.Write("Nombre del producto: ");
+            string nombre = Console.ReadLine();
+            if (SALIR(nombre)) return;
+
+            Console.Write("Modelo / descripción: ");
+            string modelo = Console.ReadLine();
+            if (SALIR(modelo)) return;
+
+            Console.Write("Marca: ");
+            string marca = Console.ReadLine();
+            if (SALIR(marca)) return;
+
+            double stock;
+            Console.Write("Stock: ");
+            while (!double.TryParse(Console.ReadLine(), NumberStyles.Any, CultureInfo.InvariantCulture, out stock) || stock < 0)
+            {
+                Console.Write("Stock inválido. Ingrese nuevamente: ");
+            }
+
+            Console.Write("Unidad (KG / UND): ");
+            string unidad = Console.ReadLine();
+            if (SALIR(unidad)) return;
+
+            double precio;
+            Console.Write("Precio: ");
+            while (!double.TryParse(Console.ReadLine(), NumberStyles.Any, CultureInfo.InvariantCulture, out precio) || precio <= 0)
+            {
+                Console.Write("Precio inválido. Ingrese nuevamente: ");
+            }
+
+            string nuevoProducto = nuevoID + " | " + nombre.Trim() + " | " + modelo.Trim() + " | " + marca.Trim() + " | " + stock + " | " + unidad.Trim().ToUpper() + " | S/ " + precio;
+
+            File.AppendAllText(archivo, nuevoProducto + Environment.NewLine);
+
+            Console.WriteLine("Producto agregado correctamente.");
         }
+
         public static void BUSCARPROD()
         {
+            string archivo = "BASEDATOS.txt";
 
+            if (!File.Exists(archivo))
+            {
+                Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                return;
+            }
+
+            string[] lineas = File.ReadAllLines(archivo);
+
+            Console.WriteLine("========== BUSCAR PRODUCTO ==========");
+            Console.Write("Ingrese nombre, marca o ID del producto: ");
+            string buscar = Console.ReadLine();
+
+            if (SALIR(buscar)) return;
+
+            bool encontrado = false;
+            int contador = 1;
+
+            foreach (string linea in lineas)
+            {
+                if (linea.StartsWith("====") || linea.StartsWith("ID") || linea.StartsWith("---") || string.IsNullOrWhiteSpace(linea))
+                {
+                    continue;
+                }
+
+                string[] datos = linea.Split('|');
+
+                if (datos.Length < 7)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < datos.Length; i++)
+                {
+                    datos[i] = datos[i].Trim();
+                }
+
+                string textoLinea = QUITARTILDES(linea).ToUpper();
+                string textoBuscar = QUITARTILDES(buscar).ToUpper();
+
+                if (textoLinea.Contains(textoBuscar))
+                {
+                    Console.WriteLine(contador + ". ID: " + datos[0] + " | Producto: " + datos[1] + " | Modelo: " + datos[2] + " | Marca: " + datos[3] + " | Stock: " + datos[4] + " | Unidad: " + datos[5] + " | Precio: " + datos[6]);
+                    encontrado = true;
+                    contador++;
+                }
+            }
+
+            if (!encontrado)
+            {
+                Console.WriteLine("Producto no encontrado.");
+            }
         }
+
         public static void MODIFICARPROD()
         {
+            string archivo = "BASEDATOS.txt";
 
+            if (!File.Exists(archivo))
+            {
+                Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                return;
+            }
+
+            string[] lineas = File.ReadAllLines(archivo);
+
+            Console.WriteLine("========== MODIFICAR PRODUCTO ==========");
+            Console.Write("Ingrese el ID del producto a modificar: ");
+            string idBuscar = Console.ReadLine();
+
+            if (SALIR(idBuscar)) return;
+
+            bool encontrado = false;
+
+            for (int i = 0; i < lineas.Length; i++)
+            {
+                string[] datos = lineas[i].Split('|');
+
+                if (datos.Length < 7)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < datos.Length; j++)
+                {
+                    datos[j] = datos[j].Trim();
+                }
+
+                if (datos[0] == idBuscar)
+                {
+                    encontrado = true;
+
+                    Console.WriteLine("Producto encontrado:");
+                    Console.WriteLine(datos[0] + " | " + datos[1] + " | " + datos[2] + " | " + datos[3] + " | " + datos[4] + " | " + datos[5] + " | " + datos[6]);
+
+                    Console.Write("Nuevo nombre: ");
+                    string nombre = Console.ReadLine();
+                    if (SALIR(nombre)) return;
+
+                    Console.Write("Nuevo modelo / descripción: ");
+                    string modelo = Console.ReadLine();
+                    if (SALIR(modelo)) return;
+
+                    Console.Write("Nueva marca: ");
+                    string marca = Console.ReadLine();
+                    if (SALIR(marca)) return;
+
+                    double stock;
+                    Console.Write("Nuevo stock: ");
+                    while (!double.TryParse(Console.ReadLine(), NumberStyles.Any, CultureInfo.InvariantCulture, out stock) || stock < 0)
+                    {
+                        Console.Write("Stock inválido. Ingrese nuevamente: ");
+                    }
+
+                    Console.Write("Nueva unidad (KG / UND): ");
+                    string unidad = Console.ReadLine();
+                    if (SALIR(unidad)) return;
+
+                    double precio;
+                    Console.Write("Nuevo precio: ");
+                    while (!double.TryParse(Console.ReadLine(), NumberStyles.Any, CultureInfo.InvariantCulture, out precio) || precio <= 0)
+                    {
+                        Console.Write("Precio inválido. Ingrese nuevamente: ");
+                    }
+
+                    lineas[i] = datos[0] + " | " + nombre.Trim() + " | " + modelo.Trim() + " | " + marca.Trim() + " | " + stock + " | " + unidad.Trim().ToUpper() + " | S/ " + precio;
+
+                    File.WriteAllLines(archivo, lineas);
+
+                    Console.WriteLine("Producto modificado correctamente.");
+                    break;
+                }
+            }
+
+            if (!encontrado)
+            {
+                Console.WriteLine("No se encontró un producto con ese ID.");
+            }
         }
+
         public static void ELIMINARPRODUCTO()
         {
+            string archivo = "BASEDATOS.txt";
 
+            if (!File.Exists(archivo))
+            {
+                Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                return;
+            }
+
+            List<string> lineas = File.ReadAllLines(archivo).ToList();
+
+            Console.WriteLine("========== ELIMINAR PRODUCTO ==========");
+            Console.Write("Ingrese el ID del producto a eliminar: ");
+            string idBuscar = Console.ReadLine();
+
+            if (SALIR(idBuscar)) return;
+
+            bool encontrado = false;
+
+            for (int i = 0; i < lineas.Count; i++)
+            {
+                string[] datos = lineas[i].Split('|');
+
+                if (datos.Length < 7)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < datos.Length; j++)
+                {
+                    datos[j] = datos[j].Trim();
+                }
+
+                if (datos[0] == idBuscar)
+                {
+                    encontrado = true;
+
+                    Console.WriteLine("Producto encontrado:");
+                    Console.WriteLine(datos[0] + " | " + datos[1] + " | " + datos[2] + " | " + datos[3] + " | " + datos[4] + " | " + datos[5] + " | " + datos[6]);
+
+                    Console.Write("¿Está seguro de eliminarlo? (S/N): ");
+                    string confirmar = Console.ReadLine().ToUpper().Trim();
+
+                    if (confirmar == "S" || confirmar == "SI")
+                    {
+                        lineas.RemoveAt(i);
+                        File.WriteAllLines(archivo, lineas);
+                        Console.WriteLine("Producto eliminado correctamente.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Eliminación cancelada.");
+                    }
+
+                    break;
+                }
+            }
+
+            if (!encontrado)
+            {
+                Console.WriteLine("No se encontró un producto con ese ID.");
+            }
         }
+
         public static void MENUPROD()
         {
+            int opcion;
 
+            do
+            {
+                Console.WriteLine("========== MENÚ DE PRODUCTOS / COMPRAS ==========");
+                Console.WriteLine("1. Agregar producto");
+                Console.WriteLine("2. Buscar producto");
+                Console.WriteLine("3. Modificar producto");
+                Console.WriteLine("4. Eliminar producto");
+                Console.WriteLine("5. Volver al menú principal");
+                Console.Write("Seleccione una opción: ");
+
+                while (!int.TryParse(Console.ReadLine(), out opcion) || opcion < 1 || opcion > 5)
+                {
+                    Console.Write("Opción inválida. Ingrese un número del 1 al 5: ");
+                }
+
+                switch (opcion)
+                {
+                    case 1:
+                        AGREGARPROD();
+                        break;
+
+                    case 2:
+                        BUSCARPROD();
+                        break;
+
+                    case 3:
+                        MODIFICARPROD();
+                        break;
+
+                    case 4:
+                        ELIMINARPRODUCTO();
+                        break;
+
+                    case 5:
+                        Console.WriteLine("Volviendo al menú principal...");
+                        break;
+                }
+
+                Console.WriteLine("\nPresione una tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
+
+            } while (opcion != 5);
         }
 
         // DEUDAS
