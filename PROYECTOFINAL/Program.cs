@@ -368,7 +368,7 @@ namespace PROYECTOFINAL
             }
             return (HVENTA, IMPORTE, HISTORIAl);
         }
-        public static void METODOPAGO() 
+        public static void METODOPAGO(double sUBTOTAL, string historialTotal) 
         {
             //DEBE TENER 4 METODOS DE PAGO: YAPE, TRANFERENCIA, EFECTIVO,CREDITO(NORMAL Y FIADO(MAX 7), TARJETA(+4%). 
             //DEBE SER TENER LA CAPACIDAD DE PAGAR MIXTO(USANDO MINIMO 2 METODO DIFERENTES DE PAGO) 
