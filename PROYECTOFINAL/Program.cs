@@ -16,6 +16,7 @@ namespace PROYECTOFINAL
         static double gananciasDia = 0;
         static double totalProductosVendidos = 0;
         static Dictionary<string, double> productosVendidos = new Dictionary<string, double>();
+        static string archivoDeudores = "DEUDORES.txt";
         //LECTURA DEL ARCHIVO
         static string[] LEERARCHIVO()
         {
@@ -484,23 +485,374 @@ namespace PROYECTOFINAL
         // DEUDAS
         public static void DEUDASVENCIDAS()
         {
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
 
+            string[] lineas = File.ReadAllLines(archivoDeudores);
+
+            string cliente = "";
+            decimal saldo = 0;
+            int diasCredito = 0;
+            DateTime fechaInicio = DateTime.MinValue;
+
+            bool bloque = false;
+            bool tieneDatos = false;
+
+            Console.WriteLine("=== DEUDAS VENCIDAS ===");
+
+            foreach (string linea in lineas)
+            {
+                if (linea.StartsWith("CLIENTE:"))
+                {
+                    cliente = linea.Substring(9).Trim();
+                    bloque = true;
+                    tieneDatos = false;
+                }
+                else if (bloque && linea.StartsWith("SALDO RESTANTE:"))
+                {
+                    decimal.TryParse(linea.Substring(17).Trim(), out saldo);
+                    tieneDatos = true;
+                }
+                else if (bloque && linea.StartsWith("TOTAL FINAL:") && !tieneDatos)
+                {
+                    decimal.TryParse(linea.Substring(13).Trim(), out saldo);
+                }
+                else if (bloque && linea.StartsWith("DIAS PARA PAGAR:"))
+                {
+                    int.TryParse(linea.Substring(17).Trim(), out diasCredito);
+                }
+                else if (bloque && linea.StartsWith("FECHA DE INICIO:"))
+                {
+                    string fechaTexto = linea.Substring(17).Trim();
+                    DateTime.TryParse(fechaTexto, out fechaInicio);
+                }
+                else if (linea.StartsWith("================"))
+                {
+                    if (cliente != "" && saldo > 0 && fechaInicio != DateTime.MinValue)
+                    {
+                        DateTime vencimiento = fechaInicio.AddDays(diasCredito);
+
+                        if (DateTime.Now > vencimiento)
+                        {
+                            int diasVencido = (DateTime.Now - vencimiento).Days;
+
+                            Console.WriteLine("----------------------------");
+                            Console.WriteLine("CLIENTE: " + cliente);
+                            Console.WriteLine("SALDO: " + saldo);
+                            Console.WriteLine("VENCIMIENTO: " + vencimiento.ToString("dd/MM/yyyy"));
+                            Console.WriteLine("DÍAS VENCIDO: " + diasVencido);
+                        }
+                    }
+
+                    cliente = "";
+                    saldo = 0;
+                    diasCredito = 0;
+                    fechaInicio = DateTime.MinValue;
+                    bloque = false;
+                    tieneDatos = false;
+                }
+            }
+
+            Console.WriteLine("============================");
         }
         public static void ABONARDEUDA()
         {
-            //SOLO CUANDO SE ABONE COMPLETAMENTE LA DEUDA, RECIEN IMPRIMIR COMPROBANTE
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
+
+            Console.Write("INGRESE EL NOMBRE DEL CLIENTE A BUSCAR: ");
+            string clienteBuscar = Console.ReadLine();
+            if (clienteBuscar.ToUpper() == "SALIR") return;
+
+            Console.Write("INGRESE EL MONTO: ");
+            string inputMonto = Console.ReadLine();
+            if (inputMonto.ToUpper() == "SALIR") return;
+
+            double montoAbono;
+            while (!double.TryParse(inputMonto, out montoAbono) || montoAbono <= 0)
+            {
+                Console.WriteLine("Monto inválido. Ingrese nuevamente:");
+                inputMonto = Console.ReadLine();
+                if (inputMonto.ToUpper() == "SALIR") return;
+            }
+
+            Console.WriteLine("=== MÉTODO DE PAGO ===");
+            Console.WriteLine("1. Efectivo");
+            Console.WriteLine("2. Yape");
+            Console.WriteLine("3. Tarjeta");
+
+            string inputPago = Console.ReadLine();
+            if (inputPago.ToUpper() == "SALIR") return;
+
+            int op;
+            while (!int.TryParse(inputPago, out op) || op < 1 || op > 3)
+            {
+                Console.WriteLine("Ingrese opción válida (1-3)");
+                inputPago = Console.ReadLine();
+                if (inputPago.ToUpper() == "SALIR") return;
+            }
+
+            string metodoPago = op == 1 ? "EFECTIVO" : op == 2 ? "YAPE" : "TARJETA";
+
+            string[] lineas = File.ReadAllLines(archivoDeudores);
+            List<string> nuevasLineas = new List<string>();
+
+            bool bloqueCliente = false;
+            bool encontrado = false;
+
+            double saldoBase = 0;
+            double nuevoSaldo = 0;
+            double vuelto = 0;
+
+            bool tieneSaldo = false;
+            bool saldoCalculado = false;
+
+            string clienteActual = "";
+
+            List<string> bloqueTemporal = new List<string>();
+            bool guardarBloque = true;
+
+            foreach (string linea in lineas)
+            {
+                if (linea.StartsWith("CLIENTE:"))
+                {
+                    clienteActual = linea.Substring(9).Trim();
+                    bloqueCliente = clienteActual.Equals(clienteBuscar, StringComparison.OrdinalIgnoreCase);
+                    bloqueTemporal.Clear();
+                    bloqueTemporal.Add(linea);
+                }
+                else if (linea.StartsWith("SALDO RESTANTE:"))
+                {
+                    if (bloqueCliente)
+                    {
+                        saldoBase = double.Parse(linea.Substring(17).Trim());
+                        tieneSaldo = true;
+                    }
+                    else
+                    {
+                        bloqueTemporal.Add(linea);
+                    }
+                }
+                else if (linea.StartsWith("TOTAL FINAL:"))
+                {
+                    bloqueTemporal.Add(linea);
+                    if (bloqueCliente && !tieneSaldo)
+                    {
+                        saldoBase = double.Parse(linea.Substring(13).Trim());
+                        tieneSaldo = true;
+                    }
+                }
+                else if (linea.StartsWith("================"))
+                {
+                    if (bloqueCliente && tieneSaldo && !saldoCalculado)
+                    {
+                        if (montoAbono == saldoBase) { nuevoSaldo = 0; vuelto = 0; }
+                        else if (montoAbono > saldoBase) { nuevoSaldo = 0; vuelto = montoAbono - saldoBase; }
+                        else { nuevoSaldo = saldoBase - montoAbono; vuelto = 0; }
+
+                        if (nuevoSaldo > 0)
+                            bloqueTemporal.Add("SALDO RESTANTE: " + Math.Round(nuevoSaldo, 2));
+                        else
+                            guardarBloque = false;
+
+                        saldoCalculado = true;
+                        encontrado = true;
+                    }
+
+                    bloqueTemporal.Add(linea);
+
+                    if (guardarBloque)
+                        nuevasLineas.AddRange(bloqueTemporal);
+
+                    guardarBloque = true;
+                    bloqueCliente = false;
+                    tieneSaldo = false;
+                    saldoCalculado = false;
+                }
+                else
+                {
+                    nuevasLineas.Add(linea);
+                }
+            }
+
+            File.WriteAllLines(archivoDeudores, nuevasLineas);
+
+            if (encontrado)
+            {
+                if (string.IsNullOrWhiteSpace(clienteActual))
+                    clienteActual = clienteBuscar;
+
+                if (nuevoSaldo == 0)
+                {
+                    string detalle = "CANCELACION TOTAL DE DEUDA | MONTO: " + saldoBase + " | METODO: " + metodoPago;
+                    TIPOCOMPROBANTE(ref clienteActual, detalle, saldoBase, metodoPago, 0, "", 0);
+                }
+
+                Console.WriteLine("=== PAGO REALIZADO ===");
+                Console.WriteLine("CLIENTE: " + clienteActual);
+                Console.WriteLine("MONTO: " + montoAbono);
+                Console.WriteLine("MÉTODO: " + metodoPago);
+                Console.WriteLine("SALDO FINAL: " + nuevoSaldo);
+
+                if (vuelto > 0)
+                    Console.WriteLine("VUELTO: " + vuelto);
+            }
+            else
+            {
+                Console.WriteLine("Cliente no encontrado.");//SOLO CUANDO SE ABONE COMPLETAMENTE LA DEUDA, RECIEN IMPRIMIR COMPROBANTE
+            }
         }
         public static void BUSCARDEUDA()
         {
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
+
+            Console.Write("INGRESE EL NOMBRE DEL CLIENTE A BUSCAR: ");
+            string nombre = Console.ReadLine();
+            if (nombre.ToUpper() == "SALIR") return;
+
+            bool encontrado = false;
+            bool imprimir = false;
+
+            foreach (string linea in File.ReadLines(archivoDeudores))
+            {
+                if (linea.StartsWith("CLIENTE:"))
+                {
+                    string cliente = linea.Substring(9).Trim();
+
+                    if (cliente.Equals(nombre, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine("=== DEUDOR ENCONTRADO ===");
+                        Console.WriteLine(linea);
+                        encontrado = true;
+                        imprimir = true;
+                    }
+                    else
+                    {
+                        imprimir = false;
+                    }
+                }
+                else if (linea.StartsWith("================"))
+                {
+                    if (imprimir)
+                    {
+                        Console.WriteLine("------------------------");
+                        imprimir = false;
+                    }
+                }
+                else
+                {
+                    if (imprimir)
+                        Console.WriteLine(linea);
+                }
+            }
+
+            if (!encontrado)
+                Console.WriteLine("No se encontró el cliente: " + nombre);
 
         }
-        public static void IMPRIMIRDEUDOR()
+        public static void IMPRIMIRDEUDOR(string cliente,
+           string totalFinal,
+           string aCuenta,
+           string saldo,
+           string dias,
+           string fechaInicio,
+           string fechaFin,
+           string tipocred)
         {
+            if (!string.IsNullOrEmpty(cliente)) Console.WriteLine("CLIENTE: " + cliente);
+            if (!string.IsNullOrEmpty(totalFinal)) Console.WriteLine("TOTAL FINAL: " + totalFinal);
+            if (!string.IsNullOrEmpty(aCuenta)) Console.WriteLine("A CUENTA: " + aCuenta);
+            if (!string.IsNullOrEmpty(saldo)) Console.WriteLine("SALDO RESTANTE: " + saldo);
+            if (!string.IsNullOrEmpty(dias)) Console.WriteLine("DIAS: " + dias);
+            if (!string.IsNullOrEmpty(fechaInicio)) Console.WriteLine("FECHA INICIO: " + fechaInicio);
+            if (!string.IsNullOrEmpty(fechaFin)) Console.WriteLine("FECHA FIN: " + fechaFin);
+            if (!string.IsNullOrEmpty(tipocred)) Console.WriteLine("TIPO DE CRÉDITO: " + tipocred);
 
+            Console.WriteLine("------------------------");
+        }
+        public static void VERDEUDORES()
+        {
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
+
+            string[] lineas = File.ReadAllLines(archivoDeudores);
+
+            string cliente = "", totalFinal = "", aCuenta = "", saldo = "",
+                   dias = "", fechaInicio = "", fechaFin = "", tipocred = "";
+
+            Console.WriteLine("===========================");
+            Console.WriteLine("========= DEUDORES ========");
+            Console.WriteLine("===========================");
+
+            foreach (string linea in lineas)
+            {
+                if (linea.StartsWith("CLIENTE:")) cliente = linea.Substring("CLIENTE:".Length).Trim();
+                else if (linea.StartsWith("TOTAL FINAL:")) totalFinal = linea.Substring("TOTAL FINAL:".Length).Trim();
+                else if (linea.StartsWith("A CUENTA:")) aCuenta = linea.Substring("A CUENTA:".Length).Trim();
+                else if (linea.StartsWith("SALDO RESTANTE:")) saldo = linea.Substring("SALDO RESTANTE:".Length).Trim();
+                else if (linea.StartsWith("DIAS PARA PAGAR:")) dias = linea.Substring("DIAS PARA PAGAR:".Length).Trim();
+                else if (linea.StartsWith("FECHA DE INICIO:")) fechaInicio = linea.Substring("FECHA DE INICIO:".Length).Trim();
+                else if (linea.StartsWith("FECHA DE FIN:")) fechaFin = linea.Substring("FECHA DE FIN:".Length).Trim();
+                else if (linea.StartsWith("TIPO DE CRÉDITO:")) tipocred = linea.Substring("TIPO DE CRÉDITO:".Length).Trim();
+                else if (linea.StartsWith("================"))
+                {
+                    IMPRIMIRDEUDOR(cliente, totalFinal, aCuenta, saldo, dias, fechaInicio, fechaFin, tipocred);
+                    cliente = totalFinal = aCuenta = saldo = dias = fechaInicio = fechaFin = tipocred = "";
+                }
+            }
         }
         public static void MENUDEUDAS()
         {
+            Console.WriteLine("======================");
+            Console.WriteLine("====== OPCIONES ======");
+            Console.WriteLine("======================");
+            Console.WriteLine("1. Ver todos deudores");
+            Console.WriteLine("2. Buscar deudor");
+            Console.WriteLine("3. Abonar / Cancelar");
+            Console.WriteLine("4. Ver deudas vencidas");
+            Console.WriteLine("5. Salir");
 
+            string OPCION;
+            int OPCIONG;
+            Console.Write("Seleccione opción: ");
+            OPCION = Console.ReadLine();
+            if (OPCION.ToUpper() == "SALIR") return;
+
+            while (!int.TryParse(OPCION, out OPCIONG) || OPCIONG < 1 || OPCIONG > 5)
+            {
+                Console.WriteLine("Ingrese una opción válida (1 - 5): ");
+                OPCION = Console.ReadLine();
+            }
+
+            switch (OPCIONG)
+            {
+                case 1: VERDEUDORES(); break;
+                case 2: BUSCARDEUDA(); break;
+                case 3: ABONARDEUDA(); break;
+                case 4: DEUDASVENCIDAS(); break;
+                case 5: break;
+            }
         }
         //MENU PRINCIPAL
         static void Main(string[] args)
