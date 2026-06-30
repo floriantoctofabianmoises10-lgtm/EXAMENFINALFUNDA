@@ -40,7 +40,7 @@ namespace PROYECTOFINAL
         public static bool SALIR(string texto)
         {
             return !string.IsNullOrWhiteSpace(texto) &&
-          texto.Trim().ToUpper() == "SALIR"; 
+          texto.Trim().ToUpper() == "SALIR";
         }
 
         //SESION
@@ -99,7 +99,7 @@ namespace PROYECTOFINAL
                         continue;
                     }
                     //Limpiamos los espacios
-                    for(int i =0; i < DATO.Length; i++)
+                    for (int i = 0; i < DATO.Length; i++)
                     {
                         DATO[i] = DATO[i].Trim();
                     }
@@ -118,7 +118,7 @@ namespace PROYECTOFINAL
                     bool ACEPPROD = false;
                     //VARIABLES 
                     int INDICE;
-                    string [] Dato = null;
+                    string[] Dato = null;
                     while (!ACEPPROD)
                     {
                         int Opc;
@@ -142,14 +142,14 @@ namespace PROYECTOFINAL
                         INDICE = posiciones[Opc - 1];
                         //SEPARACION DE LINEA EN ARREGLOS
                         Dato = linea[INDICE].Split('|');
-                        for(int i =0; i<Dato.Length; i++)
+                        for (int i = 0; i < Dato.Length; i++)
                         {
                             Dato[i] = Dato[i].Trim();
                         }
                         //MOSTRANDO PRODUCTO
                         Console.WriteLine("=========================");
                         Console.WriteLine("  PRODUCTO SELECCIONADO  ");
-                        Console.WriteLine(Dato[1] +" | "+ Dato[2] + " | " + Dato[3] + " | " + Dato[5] + " | " + Dato[6]);
+                        Console.WriteLine(Dato[1] + " | " + Dato[2] + " | " + Dato[3] + " | " + Dato[5] + " | " + Dato[6]);
                         Console.WriteLine("=========================");
                         //MENU DE CONFIRMACION
                         Console.WriteLine("1. Continuar");
@@ -163,7 +163,7 @@ namespace PROYECTOFINAL
                             if (SELECT2.ToUpper() == "SALIR")
                                 return;
 
-                            if (!int.TryParse(SELECT2, out Opc2) || Opc2<1 || Opc2 >3)
+                            if (!int.TryParse(SELECT2, out Opc2) || Opc2 < 1 || Opc2 > 3)
                             {
                                 Console.WriteLine("Entrada Invalida, Ingrese un número del rango (1-3)");
                                 continue;
@@ -177,15 +177,15 @@ namespace PROYECTOFINAL
                                 break;
                             case 2:
                                 //VARIABLE DE CORRELATIVO
-                                int COR=1;
+                                int COR = 1;
                                 Console.WriteLine("========================");
                                 Console.WriteLine("    LISTA DE PRODUCTO   ");
                                 Console.WriteLine("========================");
                                 //VUELVO A RECORRER LAS POSICIONES GUARDADAS
-                                foreach(int D in posiciones)
+                                foreach (int D in posiciones)
                                 {
                                     string[] Lista = linea[D].Split('|');
-                                    for(int i = 0; i<Lista.Length; i++)
+                                    for (int i = 0; i < Lista.Length; i++)
                                     {
                                         Lista[i] = Lista[i].Trim();
                                     }
@@ -230,7 +230,7 @@ namespace PROYECTOFINAL
                     Console.WriteLine("Operación cancelada.");
                     return;
                 }
-                while (string.IsNullOrWhiteSpace(IMPUT2) ||!(IMPUT2 == "SI" || IMPUT2 == "S" || IMPUT2 == "NO" || IMPUT2 == "N"))
+                while (string.IsNullOrWhiteSpace(IMPUT2) || !(IMPUT2 == "SI" || IMPUT2 == "S" || IMPUT2 == "NO" || IMPUT2 == "N"))
                 {
                     Console.WriteLine("Ingrese Si o No:");
                     IMPUT2 = Console.ReadLine().ToUpper();
@@ -246,21 +246,21 @@ namespace PROYECTOFINAL
                 }
 
             } while (IMPUT2 == "SI" || IMPUT2 == "S");
-            if(SUBTOTAL <= 0)
+            if (SUBTOTAL <= 0)
             {
                 Console.WriteLine("No se registró ninguna venta.");
                 return;
             }
             Console.WriteLine("=============================");
-            Console.Write("  ¿CONFIRMA LA COMPRA? (S/N): " );
-            string CF = Console.ReadLine().ToUpper().Trim() ;
+            Console.Write("  ¿CONFIRMA LA COMPRA? (S/N): ");
+            string CF = Console.ReadLine().ToUpper().Trim();
             if (SALIR(CF))
             {
                 Console.WriteLine("Operación cancelada.");
                 return;
             }
 
-            while (string.IsNullOrWhiteSpace(CF) ||!(CF == "SI" || CF == "S" || CF == "NO" || CF == "N"))
+            while (string.IsNullOrWhiteSpace(CF) || !(CF == "SI" || CF == "S" || CF == "NO" || CF == "N"))
             {
                 Console.WriteLine("Ingrese Si o no...");
                 CF = Console.ReadLine().ToUpper().Trim();
@@ -291,7 +291,7 @@ namespace PROYECTOFINAL
             //PASO POR REFERENCIA INDICE PARA LAS POSICIONES DONDE ESTÁ LOS PRODUCTOS
 
             //VARIABLES NORMALES
-            double CANTS=0;
+            double CANTS = 0;
             int CANTSE;
             //VARIABLES DE CONTROL
             bool valido = true;
@@ -325,14 +325,14 @@ namespace PROYECTOFINAL
             } while (!valido || CANTS <= 0);
             return CANTS;
         }
-        public static (bool exito,double importe, string historial) CONTROL_STOCK(string[] Dato, ref string[] linea, int indice, double Cantidad)
+        public static (bool exito, double importe, string historial) CONTROL_STOCK(string[] Dato, ref string[] linea, int indice, double Cantidad)
         {
             //VARIABLE NORMALES
             double STOCK = double.Parse(Dato[4].Replace(".", ",").Trim(), CultureInfo.InvariantCulture);
             double PRECIO = double.Parse(Dato[6].Replace("S/", "").Trim(), CultureInfo.InvariantCulture);
             string UNIDAD = Dato[5];
             bool HVENTA = false;
-            double IMPORTE=0;
+            double IMPORTE = 0;
             string HISTORIAl = "";
             string CLAVE = Dato[1] + " (" + UNIDAD + ")"; // PARA GUARDAR EN EL DICCIONARIO
             if (Cantidad <= STOCK)
@@ -368,7 +368,7 @@ namespace PROYECTOFINAL
             }
             return (HVENTA, IMPORTE, HISTORIAl);
         }
-        public static void METODOPAGO(double sUBTOTAL, string historialTotal) 
+        public static void METODOPAGO(double sUBTOTAL, string historialTotal)
         {
             //DEBE TENER 4 METODOS DE PAGO: YAPE, TRANFERENCIA, EFECTIVO,CREDITO(NORMAL Y FIADO(MAX 7), TARJETA(+4%). 
             //DEBE SER TENER LA CAPACIDAD DE PAGAR MIXTO(USANDO MINIMO 2 METODO DIFERENTES DE PAGO) 
@@ -387,7 +387,7 @@ namespace PROYECTOFINAL
             //PARA BOLETA DEBE DAR LA OPCION DE 3 TIPOS DE DOCUMENTO( DNI, CARNET EXTR, SIN DOCUMENTO
             //
 
-        } 
+        }
         public static void DELIVERY()
         {
             //SE DEBE TENER LAS PAUTAS DE DELIVERY
@@ -432,182 +432,199 @@ namespace PROYECTOFINAL
         {
             //CREACIÓN DE CIERRE DE CAJA, CON ARCHIVO TXT
         }
-        
+
         //PROVEEDORES
         public static void OBTENERIDPROV()
         {
 
         }
+        static string archivo = "proveedores.txt";
+
+        // Hecho por Mathyas: Verifica que exista el txt para que el sistema no falle al leer
         public static void VERIFICAR()
         {
-            //VERIFICAR CREACIÓN CORRECTA DE ARCHIVOS
+            try
+            {
+                if (!File.Exists(archivo))
+                {
+                    using (StreamWriter sw = File.CreateText(archivo)) { }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al intentar verificar el archivo: " + ex.Message);
+            }
         }
+
+        // Hecho por Mathyas: Algoritmo para autogenerar IDs correlativos leyendo el txt
+        public static int ObtenerID()
+        {
+            VERIFICAR();
+            int maxId = 0;
+            try
+            {
+                string[] lineas = File.ReadAllLines(archivo);
+                foreach (string l in lineas)
+                {
+                    if (string.IsNullOrWhiteSpace(l)) continue;
+                    string[] datos = l.Split('|');
+                    if (datos.Length > 0 && int.TryParse(datos[0].Trim(), out int id))
+                    {
+                        if (id > maxId) maxId = id;
+                    }
+                }
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine("Hubo un problema al leer los IDs: " + ex.Message);
+            }
+            return maxId + 1;
+        }
+
+        // Hecho por Mathyas: Bucle interactivo para registrar múltiples proveedores con validación de RUC de 11 dígitos
+        public static void AGREGAR()
+        {
+            VERIFICAR();
+            bool seguirRegistrando = true;
+            while (seguirRegistrando)
+            {
+                Console.WriteLine("\n--- Formulario de Registro de Proveedor ---");
+                int id = ObtenerID();
+                Console.WriteLine("ID asignado por el sistema: " + id);
+
+                string nombre = "";
+                while (string.IsNullOrWhiteSpace(nombre))
+                {
+                    Console.Write("Ingrese el nombre del proveedor: ");
+                    nombre = Console.ReadLine()?.Trim();
+                    if (string.IsNullOrWhiteSpace(nombre))
+                    {
+                        Console.WriteLine("El nombre es obligatorio.");
+                    }
+                }
+
+                if (nombre.ToUpper() == "SALIR") return;
+
+                string ruc = "";
+                while (true)
+                {
+                    Console.Write("Ingrese el número de RUC (11 dígitos): ");
+                    ruc = Console.ReadLine()?.Trim();
+                    if (ruc.ToUpper() == "SALIR") return;
+                    if (ruc.Length == 11 && long.TryParse(ruc, out _)) break;
+                    Console.WriteLine("RUC inválido. Deben ser 11 números.");
+                }
+
+                try
+                {
+                    string lineaGuardar = id + " | " + nombre + " | " + ruc;
+                    File.AppendAllText(archivo, lineaGuardar + Environment.NewLine);
+                    Console.WriteLine("El proveedor se guardó correctamente.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("No se pudo escribir en el archivo: " + ex.Message);
+                }
+
+                Console.Write("\n¿Quiere registrar otro proveedor? (S/N): ");
+                string respuesta = Console.ReadLine()?.Trim().ToUpper();
+                if (respuesta != "S") seguirRegistrando = false;
+            }
+        }
+
+        // Hecho por Mathyas: Busca proveedores por ID o por nombre ignorando mayúsculas y actualiza sus datos en el txt
+        public static void MODIFICAR()
+        {
+            VERIFICAR();
+            try
+            {
+                string[] lineas = File.ReadAllLines(archivo);
+                if (lineas.Length == 0 || (lineas.Length == 1 && lineas[0] == ""))
+                {
+                    Console.WriteLine("No hay proveedores registrados para modificar.");
+                    return;
+                }
+
+                Console.Write("\nIngrese el ID o el nombre del proveedor a modificar: ");
+                string buscar = Console.ReadLine()?.Trim();
+                if (string.IsNullOrWhiteSpace(buscar) || buscar.ToUpper() == "SALIR") return;
+
+                bool esId = int.TryParse(buscar, out int idBuscar);
+                bool cambiosRealizados = false;
+
+                for (int i = 0; i < lineas.Length; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(lineas[i])) continue;
+                    string[] datos = lineas[i].Split('|');
+                    if (datos.Length < 3) continue;
+
+                    int idActual = int.Parse(datos[0].Trim());
+                    string nombreActual = datos[1].Trim();
+
+                    bool encontrado = false;
+                    if (esId && idActual == idBuscar) encontrado = true;
+                    if (!esId && nombreActual.IndexOf(buscar, StringComparison.OrdinalIgnoreCase) >= 0) encontrado = true;
+
+                    if (encontrado)
+                    {
+                        Console.WriteLine("\nProveedor encontrado: " + lineas[i]);
+                        Console.Write("Nuevo nombre (ENTER para mantener): ");
+                        string nuevoNombre = Console.ReadLine()?.Trim();
+                        Console.Write("Nuevo RUC (ENTER para mantener): ");
+                        string nuevoRuc = Console.ReadLine()?.Trim();
+
+                        if (!string.IsNullOrWhiteSpace(nuevoNombre)) datos[1] = nuevoNombre;
+                        if (!string.IsNullOrWhiteSpace(nuevoRuc))
+                        {
+                            if (nuevoRuc.Length == 11 && long.TryParse(nuevoRuc, out _)) datos[2] = nuevoRuc;
+                            else Console.WriteLine("RUC inválido. Se mantiene el original.");
+                        }
+
+                        lineas[i] = string.Join(" | ", datos);
+                        cambiosRealizados = true;
+                        break;
+                    }
+                }
+
+                if (cambiosRealizados)
+                {
+                    File.WriteAllLines(archivo, lineas);
+                    Console.WriteLine("Los cambios se guardaron correctamente.");
+                }
+                else
+                {
+                    Console.WriteLine("No se encontró ningún proveedor.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al modificar: " + ex.Message);
+            }
+        }
+
+        // Hecho por Mathyas: Menú principal que controla las acciones de los proveedores
         public static void MENUPROV()
         {
-
-        }
-        public static void MOSTRARPROV()
-        {
-
-        }
-        public static void AGREGARPROV()
-        {
-
-        }
-        public static void MODIFICARPROV()
-        {
-
-        }
-
-        //REGISTRAR COMPRAS
-        public static void AGREGARPROD()
-        {
-
-        }
-        public static void BUSCARPROD()
-        {
-
-        }
-        public static void MODIFICARPROD()
-        {
-
-        }
-        public static void ELIMINARPRODUCTO()
-        {
-
-        }
-        public static void MENUPROD()
-        {
-
-        }
-
-        // DEUDAS
-        public static void DEUDASVENCIDAS()
-        {
-
-        }
-        public static void ABONARDEUDA()
-        {
-            //SOLO CUANDO SE ABONE COMPLETAMENTE LA DEUDA, RECIEN IMPRIMIR COMPROBANTE
-        }
-        public static void BUSCARDEUDA()
-        {
-
-        }
-        public static void IMPRIMIRDEUDOR()
-        {
-
-        }
-        public static void MENUDEUDAS()
-        {
-
-        }
-        //MENU PRINCIPAL
-        static void Main(string[] args)
-        {
-            int opcion = 0;
-            CARGARSESION();
-            CARGARVENTASDIA(); 
-            while (true) // 🔴 SISTEMA SIEMPRE ENCENDIDO
+            string opcion = "";
+            do
             {
-                Console.WriteLine("===============================");
-                Console.WriteLine("= SISTEMA DE VENTAS / COMPRAS= ");
-                Console.WriteLine("===============================");
-                Console.WriteLine("1. Registrar Ventas");
-                Console.WriteLine("2. Registrar Compras");
-                Console.WriteLine("3. Proveedores");
-                Console.WriteLine("4. Finalizar Día");
-                Console.WriteLine("5. Gestionar Deudores");
-                Console.WriteLine("6. Salir");
-                Console.Write("SELECCIONE: ");
-
-                while (!int.TryParse(Console.ReadLine(), out opcion) || opcion < 1 || opcion > 6)
-                {
-                    Console.WriteLine("Ingrese solo números (1-6)...");
-                }
+                Console.WriteLine("\n=================================");
+                Console.WriteLine("      MÓDULO DE PROVEEDORES      ");
+                Console.WriteLine("=================================");
+                Console.WriteLine("1. Registrar nuevos proveedores");
+                Console.WriteLine("2. Modificar datos de un proveedor");
+                Console.WriteLine("3. Volver al menú de la bodega");
+                Console.Write("Seleccione una opción: ");
+                opcion = Console.ReadLine()?.Trim();
 
                 switch (opcion)
                 {
-                    case 1:
-                        REGISTROVENTAS();
-                        break;
-
-                    case 2:
-                        MENUPROD();
-                        break;
-                    case 3:
-                        MENUPROV();
-                        break;
-
-                    case 4:
-                        {
-                            bool volverMenu = false;
-
-                            while (!volverMenu)
-                            {
-                                Console.WriteLine("==============================");
-                                Console.WriteLine("===== FINALIZAR DÍA =====");
-                                Console.WriteLine("==============================");
-                                Console.WriteLine("1. Mostrar estadísticas");
-                                Console.WriteLine("2. Mostrar historial de venta total");
-                                Console.WriteLine("3. Volver al menú principal");
-                                Console.Write("SELECCIONE: ");
-
-                                int OPCIÓNF;
-
-                                while (!int.TryParse(Console.ReadLine(), out OPCIÓNF) || OPCIÓNF < 1 || OPCIÓNF > 3)
-                                {
-                                    Console.WriteLine("Ingrese 1, 2 o 3");
-                                }
-                                switch (OPCIÓNF)
-                                {
-                                    case 1:
-                                        ESTADISTICAS();
-                                        break;
-
-                                    case 2:
-                                        CIERRECAJA();
-                                        break;
-
-                                    case 3:
-                                        volverMenu = true; // 
-                                        break;
-
-                                    default:
-                                        Console.WriteLine("Opción inválida");
-                                        break;
-                                }
-                            }
-
-                            break;
-                        }
-
-                    case 5:
-                        MENUDEUDAS();
-                        break;
-                    case 6:
-                        string OPCF;
-                        do
-                        {
-                            Console.WriteLine("¿Desea finalizar el programa? (SI/NO)");
-                            OPCF = Console.ReadLine().ToUpper();
-                            if (OPCF == "S" || OPCF == "SI")
-                            {
-                                Console.WriteLine("Cerrando sistema...");
-                                return;
-                            }
-                            else if (OPCF == "N" || OPCF == "NO")
-                            {
-                                break;
-                            }
-                            else
-                            {
-                                Console.WriteLine("Ingrese solo SI o NO");
-                            }
-                        } while (true);
-                        break;
+                    case "1": AGREGAR(); break;
+                    case "2": MODIFICAR(); break;
+                    case "3": Console.WriteLine("Regresando..."); break;
+                    default: Console.WriteLine("Opción no válida."); break;
                 }
-            }
+            } while (opcion != "3");
         }
     }
 }
