@@ -434,10 +434,7 @@ namespace PROYECTOFINAL
         }
 
         //PROVEEDORES
-        public static void OBTENERIDPROV()
-        {
-
-        }
+        // Observación 7: Mantiene la variable global y el orden del archivo original
         static string archivo = "proveedores.txt";
 
         // Hecho por Mathyas: Verifica que exista el txt para que el sistema no falle al leer
@@ -456,8 +453,8 @@ namespace PROYECTOFINAL
             }
         }
 
-        // Hecho por Mathyas: Algoritmo para autogenerar IDs correlativos leyendo el txt
-        public static int ObtenerID()
+        // Observación 7: Se fusionó la información y lógica en el método original OBTENERIDPROV
+        public static int OBTENERIDPROV()
         {
             VERIFICAR();
             int maxId = 0;
@@ -466,9 +463,12 @@ namespace PROYECTOFINAL
                 string[] lineas = File.ReadAllLines(archivo);
                 foreach (string l in lineas)
                 {
+                    // Observación METODO MODIFICAR: Valida líneas vacías, nulas o incorrectas
                     if (string.IsNullOrWhiteSpace(l)) continue;
                     string[] datos = l.Split('|');
-                    if (datos.Length > 0 && int.TryParse(datos[0].Trim(), out int id))
+
+                    // Valida que la línea tenga la estructura correcta antes de procesar
+                    if (datos.Length >= 3 && int.TryParse(datos[0].Trim(), out int id))
                     {
                         if (id > maxId) maxId = id;
                     }
@@ -481,42 +481,75 @@ namespace PROYECTOFINAL
             return maxId + 1;
         }
 
-        // Hecho por Mathyas: Bucle interactivo para registrar múltiples proveedores con validación de RUC de 11 dígitos
+        // Hecho por Mathyas: Bucle interactivo para registrar múltiples proveedores
         public static void AGREGAR()
         {
             VERIFICAR();
             bool seguirRegistrando = true;
             while (seguirRegistrando)
             {
-                Console.WriteLine("\n--- Formulario de Registro de Proveedor ---");
-                int id = ObtenerID();
+                // Observación METODO AGREGAR: Encabezado mejorado y estético
+                Console.WriteLine("\n=========================================");
+                Console.WriteLine("     REGISTRO DE NUEVO PROVEEDOR         ");
+                Console.WriteLine("=========================================");
+
+                int id = OBTENERIDPROV();
                 Console.WriteLine("ID asignado por el sistema: " + id);
 
                 string nombre = "";
-                while (string.IsNullOrWhiteSpace(nombre))
+                while (true)
                 {
                     Console.Write("Ingrese el nombre del proveedor: ");
                     nombre = Console.ReadLine()?.Trim();
+
+                    // Observación METODO AGREGAR: Llama a la lógica de SALIR global en vez de hacer validación propia
+                    if (nombre?.ToUpper() == "SALIR") return;
+
+                    // Observación METODO AGREGAR: Valida que no esté vacío y que no contenga números
                     if (string.IsNullOrWhiteSpace(nombre))
                     {
-                        Console.WriteLine("El nombre es obligatorio.");
+                        Console.WriteLine("El nombre es obligatorio y no puede quedar vacío.");
+                    }
+                    else if (nombre.Any(char.IsDigit))
+                    {
+                        Console.WriteLine("Error: El nombre del proveedor no puede contener números.");
+                    }
+                    else
+                    {
+                        break; // Entrada válida
                     }
                 }
-
-                if (nombre.ToUpper() == "SALIR") return;
 
                 string ruc = "";
                 while (true)
                 {
                     Console.Write("Ingrese el número de RUC (11 dígitos): ");
                     ruc = Console.ReadLine()?.Trim();
-                    if (ruc.ToUpper() == "SALIR") return;
-                    if (ruc.Length == 11 && long.TryParse(ruc, out _)) break;
-                    Console.WriteLine("RUC inválido. Deben ser 11 números.");
+
+                    if (ruc?.ToUpper() == "SALIR") return;
+
+                    // Observación METODO AGREGAR: Se eliminó el tipo 'long'. Se valida carácter por carácter,
+                    // y se asegura de que no sea una cadena de puros ceros (00000000000).
+                    if (ruc.Length == 11 && ruc.All(char.IsDigit))
+                    {
+                        if (ruc == "00000000000")
+                        {
+                            Console.WriteLine("RUC inválido. No se permite un RUC compuesto solo por ceros.");
+                        }
+                        else
+                        {
+                            break; // RUC completamente válido
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("RUC inválido. Deben ser exactamente 11 dígitos numéricos.");
+                    }
                 }
 
                 try
                 {
+                    // Observación OJO 3: Salto de línea limpio para evitar sobreescritura
                     string lineaGuardar = id + " | " + nombre + " | " + ruc;
                     File.AppendAllText(archivo, lineaGuardar + Environment.NewLine);
                     Console.WriteLine("El proveedor se guardó correctamente.");
@@ -532,14 +565,16 @@ namespace PROYECTOFINAL
             }
         }
 
-        // Hecho por Mathyas: Busca proveedores por ID o por nombre ignorando mayúsculas y actualiza sus datos en el txt
+        // Hecho por Mathyas: Busca proveedores por ID o por nombre y actualiza sus datos en el txt
         public static void MODIFICAR()
         {
             VERIFICAR();
             try
             {
                 string[] lineas = File.ReadAllLines(archivo);
-                if (lineas.Length == 0 || (lineas.Length == 1 && lineas[0] == ""))
+
+                // Observación METODO MODIFICAR: Validación de líneas vacías o nulas en el archivo
+                if (lineas.Length == 0 || lineas.All(string.IsNullOrWhiteSpace))
                 {
                     Console.WriteLine("No hay proveedores registrados para modificar.");
                     return;
@@ -547,8 +582,10 @@ namespace PROYECTOFINAL
 
                 Console.Write("\nIngrese el ID o el nombre del proveedor a modificar: ");
                 string buscar = Console.ReadLine()?.Trim();
-                if (string.IsNullOrWhiteSpace(buscar) || buscar.ToUpper() == "SALIR") return;
+                if (buscar?.ToUpper() == "SALIR") return;
+                if (string.IsNullOrWhiteSpace(buscar)) return;
 
+                // Observación OJO 5: Validación explícita usando TryParse
                 bool esId = int.TryParse(buscar, out int idBuscar);
                 bool cambiosRealizados = false;
 
@@ -558,7 +595,7 @@ namespace PROYECTOFINAL
                     string[] datos = lineas[i].Split('|');
                     if (datos.Length < 3) continue;
 
-                    int idActual = int.Parse(datos[0].Trim());
+                    if (!int.TryParse(datos[0].Trim(), out int idActual)) continue;
                     string nombreActual = datos[1].Trim();
 
                     bool encontrado = false;
@@ -568,17 +605,33 @@ namespace PROYECTOFINAL
                     if (encontrado)
                     {
                         Console.WriteLine("\nProveedor encontrado: " + lineas[i]);
-                        Console.Write("Nuevo nombre (ENTER para mantener): ");
-                        string nuevoNombre = Console.ReadLine()?.Trim();
-                        Console.Write("Nuevo RUC (ENTER para mantener): ");
-                        string nuevoRuc = Console.ReadLine()?.Trim();
+
+                        // Validar el nuevo nombre (solo letras)
+                        string nuevoNombre;
+                        while (true)
+                        {
+                            Console.Write("Nuevo nombre (ENTER para mantener): ");
+                            nuevoNombre = Console.ReadLine()?.Trim();
+                            if (string.IsNullOrEmpty(nuevoNombre)) break; // Mantiene el original
+                            if (nuevoNombre.ToUpper() == "SALIR") return;
+                            if (nuevoNombre.Any(char.IsDigit)) Console.WriteLine("El nombre no puede contener números.");
+                            else break;
+                        }
+
+                        // Validar el nuevo RUC (11 dígitos, no ceros)
+                        string nuevoRuc;
+                        while (true)
+                        {
+                            Console.Write("Nuevo RUC (ENTER para mantener): ");
+                            nuevoRuc = Console.ReadLine()?.Trim();
+                            if (string.IsNullOrEmpty(nuevoRuc)) break; // Mantiene el original
+                            if (nuevoRuc.ToUpper() == "SALIR") return;
+                            if (nuevoRuc.Length == 11 && nuevoRuc.All(char.IsDigit) && nuevoRuc != "00000000000") break;
+                            Console.WriteLine("RUC inválido. Deben ser 11 números válidos.");
+                        }
 
                         if (!string.IsNullOrWhiteSpace(nuevoNombre)) datos[1] = nuevoNombre;
-                        if (!string.IsNullOrWhiteSpace(nuevoRuc))
-                        {
-                            if (nuevoRuc.Length == 11 && long.TryParse(nuevoRuc, out _)) datos[2] = nuevoRuc;
-                            else Console.WriteLine("RUC inválido. Se mantiene el original.");
-                        }
+                        if (!string.IsNullOrWhiteSpace(nuevoRuc)) datos[2] = nuevoRuc;
 
                         lineas[i] = string.Join(" | ", datos);
                         cambiosRealizados = true;
@@ -593,7 +646,7 @@ namespace PROYECTOFINAL
                 }
                 else
                 {
-                    Console.WriteLine("No se encontró ningún proveedor.");
+                    Console.WriteLine("No se encontró ningún proveedor con los datos ingresados.");
                 }
             }
             catch (Exception ex)
@@ -605,7 +658,7 @@ namespace PROYECTOFINAL
         // Hecho por Mathyas: Menú principal que controla las acciones de los proveedores
         public static void MENUPROV()
         {
-            string opcion = "";
+            string entrada = "";
             do
             {
                 Console.WriteLine("\n=================================");
@@ -615,16 +668,28 @@ namespace PROYECTOFINAL
                 Console.WriteLine("2. Modificar datos de un proveedor");
                 Console.WriteLine("3. Volver al menú de la bodega");
                 Console.Write("Seleccione una opción: ");
-                opcion = Console.ReadLine()?.Trim();
+                entrada = Console.ReadLine()?.Trim();
 
-                switch (opcion)
+                if (entrada?.ToUpper() == "SALIR") return;
+
+                // Observación METODO MENUPROV: Convierte la opción a número usando TryParse
+                if (int.TryParse(entrada, out int opcion))
                 {
-                    case "1": AGREGAR(); break;
-                    case "2": MODIFICAR(); break;
-                    case "3": Console.WriteLine("Regresando..."); break;
-                    default: Console.WriteLine("Opción no válida."); break;
+                    switch (opcion)
+                    {
+                        case 1: AGREGAR(); break;
+                        case 2: MODIFICAR(); break;
+                        case 3: Console.WriteLine("Regresando..."); break;
+                        // Observación METODO MENUPROV: Si ingresa un número fuera de rango, avisa controladamente
+                        default: Console.WriteLine("Opción no válida. Ingrese un número del índice (1 al 3)."); break;
+                    }
                 }
-            } while (opcion != "3");
+                else
+                {
+                    Console.WriteLine("Por favor, ingrese un número válido.");
+                }
+
+            } while (entrada != "3");
         }
     }
 }
