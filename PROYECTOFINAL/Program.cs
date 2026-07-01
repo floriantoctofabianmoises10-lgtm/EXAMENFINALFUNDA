@@ -290,14 +290,53 @@ namespace PROYECTOFINAL
                 Console.WriteLine("Venta cancelada.");
                 return;
             }
-            METODOPAGO(SUBTOTAL, historialTotal);
-            File.WriteAllLines("BASEDATOS.txt", linea);
-            Console.WriteLine("\nPresione una tecla para continuar...");
-            Console.ReadKey();
-            Console.Clear();
-            Console.WriteLine("=============================");
+        }
 
+        public static void METODOPAGO(double totalPagar, ref string cliente, string listaProductos, double subtotal, string direccion, double costoDelivery)
+        {
+            Console.WriteLine("\n--- SELECCIONE MÉTODO DE PAGO ---");
+            Console.WriteLine("1. Yape / Transferencia");
+            Console.WriteLine("2. Efectivo");
+            Console.WriteLine("3. Crédito (Con vencimiento)");
+            Console.WriteLine("4. Tarjeta (+4%)");
+            Console.Write("Opción: ");
 
+            int opcion = int.Parse(Console.ReadLine());
+            string metodoPago = "";
+            bool pagoCompleto = true;
+
+            switch (opcion)
+            {
+                case 1:
+                    metodoPago = "Yape/Transferencia";
+                    break;
+                case 2:
+                    metodoPago = "Efectivo";
+                    
+                    break;
+                case 3:
+                    metodoPago = "Crédito";
+                    // Aquí pedirías días de vencimiento y guardarías en el TXT de deudas
+                    break;
+                case 4:
+                    metodoPago = "Tarjeta";
+                    totalPagar *= 1.04; // Aplica el 4%
+                    break;
+            }
+
+            // COMPROBANTE:Tarjeta, Yape, Transferencia o Efectivo completo
+            if (opcion == 1 || opcion == 2 || opcion == 4)
+            {
+                Console.Write("¿Desea comprobante? (SI/NO): ");
+                if (Console.ReadLine().ToUpper() == "SI" || Console.ReadLine().ToUpper() == "S")
+                {
+                    TIPOCOMPROBANTE(ref cliente, listaProductos, subtotal, metodoPago, costoDelivery, direccion, totalPagar);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Su pago ha sido registrado en el sistema de créditos.");
+            }
         }
         public static double CANTIDADVENTA(string[] Dato, ref string[] linea, int indice)
         {
