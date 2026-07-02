@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,9 @@ namespace PROYECTOFINAL
         static double gananciasDia = 0;
         static double totalProductosVendidos = 0;
         static Dictionary<string, double> productosVendidos = new Dictionary<string, double>();
+        // VARIABLES GLOBALES
+        static string cliente = "CLIENTE GENERAL";
+        static string clienteComprobante = "";
         //LECTURA DEL ARCHIVO
         static string[] LEERARCHIVO()
         {
@@ -57,7 +61,8 @@ namespace PROYECTOFINAL
         {
 
         }
-
+        //METODO GUARDAR SESIÓN
+        //METODO 
         //VENTAS
         public static void REGISTROVENTAS()
         {
@@ -251,8 +256,15 @@ namespace PROYECTOFINAL
                 Console.WriteLine("No se registró ninguna venta.");
                 return;
             }
-            Console.WriteLine("=============================");
-            Console.Write("  ¿CONFIRMA LA COMPRA? (S/N): " );
+            Console.WriteLine("=================================");
+            Console.WriteLine("       RESUMEN DE LA COMPRA       ");
+            Console.WriteLine("=================================");
+            Console.WriteLine(historialTotal);
+            Console.WriteLine("=================================");
+            Console.WriteLine("SUBTOTAL: S/" + SUBTOTAL);
+            Console.WriteLine("=================================");
+
+            Console.WriteLine("\n¿CONFIRMAR COMPRA? (S/N)");
             string CF = Console.ReadLine().ToUpper().Trim() ;
             if (SALIR(CF))
             {
@@ -266,16 +278,21 @@ namespace PROYECTOFINAL
                 CF = Console.ReadLine().ToUpper().Trim();
                 if (SALIR(CF))
                 {
-                    Console.WriteLine("Operación cancelada.");
+                    Console.WriteLine("Operación cancelada....");
                     return;
                 }
             }
             if (CF == "NO" || CF == "N")
             {
-                Console.WriteLine("Venta cancelada.");
+                Console.WriteLine("Venta cancelada.....");
                 return;
             }
-            METODOPAGO(SUBTOTAL, historialTotal);
+            // VARIABLES PARA EL DELIVERY
+            var delivery = DELIVERY(SUBTOTAL);
+            double costoDelivery = delivery.costoDelivery;
+            string direccion = delivery.direccion;
+            METODOPAGO(SUBTOTAL, historialTotal, direccion, costoDelivery);
+            
             File.WriteAllLines("BASEDATOS.txt", linea);
             Console.WriteLine("\nPresione una tecla para continuar...");
             Console.ReadKey();
@@ -368,7 +385,55 @@ namespace PROYECTOFINAL
             }
             return (HVENTA, IMPORTE, HISTORIAl);
         }
-        public static void METODOPAGO() 
+        public static void MODELOBOLETA(int numeroBO,string archivoBoleta, DateTime año,string cliente, string listaProductos, double subtotal, string metodoPago, double costoDelivery, string direccion, double totalFinal)
+        {
+            double SUBTOTALIGV = subtotal / 1.18;
+            double igvInformativo = subtotal - SUBTOTALIGV;
+            using (StreamWriter sw = new StreamWriter(archivoBoleta))
+            {
+                sw.WriteLine("==============================");
+                sw.WriteLine("       BOLETA DE VENTA        ");
+                sw.WriteLine("==============================");
+                sw.WriteLine("N° Boleta: B001- " + numeroBO.ToString("000"));
+                sw.WriteLine("Fecha: " + DateTime.Now);
+                sw.WriteLine("Cliente: " + cliente);
+                sw.WriteLine(listaProductos);
+                sw.WriteLine("Subtotal: S/ " + subtotal);
+                sw.WriteLine("IGV (18%): S/ " + igvInformativo);
+                sw.WriteLine("Método de pago: " + metodoPago);
+                sw.WriteLine("Delivery: S/ " + costoDelivery);
+                sw.WriteLine("Dirección: " + direccion);
+                sw.WriteLine("TOTAL: S/ " + totalFinal);
+                sw.WriteLine("------------------------------");
+                sw.WriteLine("==== MUCHAS GRACIAS POR COMPRAR EN LA BODEGA LA NONA ====");
+                sw.WriteLine("==============================");
+            }
+        }
+        public static void MODELOFACTURA(int numeroFAC, double baseImponible, string codigo, double igv, string archivoFactura, DateTime año, string cliente, string listaProductos, double subtotal, string metodoPago, double costoDelivery, string direccion, double totalFinal)
+        {
+            using (StreamWriter sw = new StreamWriter(archivoFactura, true))
+            {
+                sw.WriteLine("==============================");
+                sw.WriteLine("       FACTURA DE VENTA       ");
+                sw.WriteLine("==============================");
+                sw.WriteLine("N° Factura: F001- " + numeroFAC.ToString("000"));
+                sw.WriteLine("Fecha: " + DateTime.Now);
+                sw.WriteLine("RUC: " + codigo);
+                sw.WriteLine("Cliente: " + cliente);
+                sw.WriteLine(listaProductos);
+                sw.WriteLine("Subtotal: S/ " + subtotal);
+                sw.WriteLine("BASE IMPONIBLE: S/ " + baseImponible);
+                sw.WriteLine("IGV (18%): S/ " + igv);
+                sw.WriteLine("Método de pago: " + metodoPago);
+                sw.WriteLine("Delivery: S/ " + costoDelivery);
+                sw.WriteLine("Dirección: " + direccion);
+                sw.WriteLine("TOTAL: S/ " + totalFinal);
+                sw.WriteLine("------------------------------");
+                sw.WriteLine("==== MUCHAS GRACIAS POR COMPRAR EN LA BODEGA LA NONA ====");
+                sw.WriteLine("==============================");
+            }
+        }
+        public static void METODOPAGO(double subtotal, string historialTotal, string direccion, double costoDelivery) 
         {
             //DEBE TENER 4 METODOS DE PAGO: YAPE, TRANFERENCIA, EFECTIVO,CREDITO(NORMAL Y FIADO(MAX 7), TARJETA(+4%). 
             //DEBE SER TENER LA CAPACIDAD DE PAGAR MIXTO(USANDO MINIMO 2 METODO DIFERENTES DE PAGO) 
@@ -378,25 +443,603 @@ namespace PROYECTOFINAL
             //A CREDITO SE LE DEBEN PONER DÍAS DE INICIO Y VENCIMIENTO
             //SOLO SI EL PAGO ESTÁ COMPLETO O EL METODO DE PAGO ES TARJETA O ES YAPE/TRANSFERENCIA, SE LE DEBE LLAMAR A LA OPCION DE SI DESEA UN TIPO COMPROBANTE
             // SE DEBE GUARDAR UN HISTORIALES
+            //VARIABLES DE ENTRADA
+            int OPCM;
+            string IMPUT3;
+            Console.WriteLine("===== SELECCIONE SU METODO DE PAGO =====");
+            Console.WriteLine("1. YAPE/TRANSFERENCIA");
+            Console.WriteLine("2. EFECTIVO (Seleccione si desea pagar o dar un adelanto)");
+            Console.WriteLine("3. CRÉDITO");
+            Console.WriteLine("4. TARJETA (+4%)");
+            IMPUT3 = Console.ReadLine();
+            if(SALIR(IMPUT3))
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
+            while(!int.TryParse(IMPUT3, out OPCM) || OPCM < 1 || OPCM > 4)
+            {
+                Console.WriteLine("Ingrese una opción válida (1-4): ");
+                IMPUT3 = Console.ReadLine();
+                if (SALIR(IMPUT3))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+            }
+            switch (OPCM)
+            {
+                case 1:
+                    string metodoPago = "YAPE/TRANSFERENCIA";
+                    Console.WriteLine("==== YAPE/TRANSFERENCIA ====");
+                    MPYAPE_TRANSFERENCIA(subtotal, costoDelivery, direccion, historialTotal, metodoPago);
+                    break;
+                case 2:
+                    string metodoPago = "EFECTIVO";
+                    MPEFECTIVO(subtotal, costoDelivery, direccion, historialTotal);
+                    break;
+                case 3:
+                    metodoPago = "CRÉDITO";
+                    MPCREDITO(subtotal, historialTotal);
+                    break;
+                case 4:
+                    string metodoPago = "TARJETA";
+                    MPTARJETA(subtotal, costoDelivery, direccion, historialTotal);
+                    break;         
+            }
         }
-        public static void TIPOCOMPROBANTE()
+        
+        public static void MPTARJETA(double SUBTOTAL, double costoDelivery, string direccion, string historialTotal)
         {
-            // DAR 2 OPCIONES DE COMPROBANTE: BOLETA O FACTURA
-            // CREAR 2 ARCHIVOS DIFERENTES PARA BOLETAS Y PARA FACTURAS POR DÍA
-            //CADA FACTURA Y BOLETA DEBE TENER UN CORRELATIVO Y SU NUMERO DE SERIE.
-            //PARA BOLETA DEBE DAR LA OPCION DE 3 TIPOS DE DOCUMENTO( DNI, CARNET EXTR, SIN DOCUMENTO
-            //
+            Console.WriteLine("===== TARJETA =====");
+            //VARIAABLES LOCALES
+            double totalFinal = SUBTOTAL + costoDelivery;
+            string IMPUT12;
+            // MOSTRAMOS UN RESUMEN ANTES DE PEDIR COMPROBANTE
+            Console.WriteLine("DELIVERY:S/" + costoDelivery);
+            Console.WriteLine("DIRECCIÓN:" + direccion);
+            Console.WriteLine("TOTAL FINAL:S/" + totalFinal);
+            Console.WriteLine("========================================");
+            Console.WriteLine("DESEA ALGÚN COMPROBANTE DE PAGO (S/N)?: ");
+            IMPUT12 = Console.ReadLine().ToUpper();
 
-        } 
-        public static void DELIVERY()
+            if (SALIR(IMPUT12))
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
+
+            while (IMPUT12 != "SI" && IMPUT12 != "S" && IMPUT12 != "NO" && IMPUT12 != "N")
+            {
+                Console.WriteLine("DEBE INGRESAR SI O NO");
+                IMPUT12 = Console.ReadLine().ToUpper();
+
+                if (SALIR(IMPUT12))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+            }
+
+            if (IMPUT12 == "SI" || IMPUT12 == "S")
+            {
+                TIPOCOMPROBANTE(historialTotal, SUBTOTAL,"TARJETA", costoDelivery, direccion, totalFinal);
+            }
+            else
+            {
+                Console.WriteLine("VENTA REALIZADA Y REGISTRADA");
+            }
+        }
+        public static void MPCREDITO(double totalFinal, string historialTotal)
         {
-            //SE DEBE TENER LAS PAUTAS DE DELIVERY
-            //SE DEBE CALCULAR ANTES DE DAR EL RESUMEN DE COMPRA COMPLETO, AUNQUE SE DEBE MOSTRAR ANTES DE PEDIR EL DELIVERY EL MONTO FINAL SOLO
-            //DEBE ESTAR RELACIONADO CON OTROS METODOS
+            //VARIABLE LOCALES
+            string IMPUT8, IMPUT9, IMPUT10;
+            int DIASPAGO;
+
+            Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
+            IMPUT8 = Console.ReadLine();
+            if (SALIR(IMPUT8))
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
+            while (string.IsNullOrWhiteSpace(IMPUT8))
+            {
+                Console.WriteLine("No puede dejar vacío ni ingresar solo espacios.");
+                Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
+                IMPUT8 = Console.ReadLine();
+                if (SALIR(IMPUT8))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+            }
+            Console.Write("INGRESE LOS DIAS PARA PAGAR: ");
+            IMPUT9 = Console.ReadLine();
+            if (SALIR(IMPUT9))
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
+            while (!int.TryParse(IMPUT9, out DIASPAGO) || DIASPAGO <= 0)
+            {
+                Console.WriteLine("INGRESE DIAS VALIDOS: ");
+                IMPUT10 = Console.ReadLine();
+                if (SALIR(IMPUT10))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+            }
+            FORMATODEUDA(IMPUT8, totalFinal, "Credito", DIASPAGO, historialTotal);
+        }
+        public static void MPYAPE_TRANSFERENCIA(double SUBTOTAL, double costoDelivery, string direccion, string historialTotal, string metodoPago)
+        {
+
+            //VARIAABLES LOCALES
+            double totalFinal = SUBTOTAL + costoDelivery;
+            string IMPUT11;
+
+            // MOSTRAMOS UN RESUMEN ANTES DE PEDIR COMPROBANTE
+            Console.WriteLine("DELIVERY:S/" + costoDelivery);
+            Console.WriteLine("DIRECCIÓN:" + direccion);
+            Console.WriteLine("TOTAL FINAL:S/" + totalFinal);
+            Console.WriteLine("========================================");
+            Console.WriteLine("DESEA ALGÚN COMPROBANTE DE PAGO (S/N)?: ");
+            IMPUT11 = Console.ReadLine().ToUpper();
+
+            if (SALIR(IMPUT11))
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
+
+            while (IMPUT11 != "SI" && IMPUT11 != "S" && IMPUT11 != "NO" && IMPUT11 != "N")
+            {
+                Console.WriteLine("DEBE INGRESAR SI O NO");
+                IMPUT11 = Console.ReadLine().ToUpper();
+
+                if (IMPUT11 == "SALIR")
+                    return;
+            }
+
+            if (IMPUT11 == "SI" || IMPUT11 == "S")
+            {
+                TIPOCOMPROBANTE(historialTotal, SUBTOTAL, metodoPago, costoDelivery, direccion, totalFinal);
+            }
+            else
+            {
+                Console.WriteLine("VENTA REALIZADA Y REGISTRADA");
+            }
+        }
+        public static void MPEFECTIVO( double SUBTOTAL, double costoDelivery, string direccion, string historialTotal)
+        {
+            //VARIABLES DE ENTRADA
+            string IMPUT4;
+            string IMPUT5;
+            string IMPUT6;
+            string IMPUT7;
+            int OPCECTIVO;
+            int DIASP;
+            double ADELANTO;
+            string metodoPago = "EFECTIVO";
+            double deuda;
+            // CALCULO DEL TOTAL FINAL
+            double totalFinal = SUBTOTAL + costoDelivery;
+            //MENU SECUNDARIO
+            Console.WriteLine("===== EFECTIVO =====");
+            Console.WriteLine("1. ADELANTO");
+            Console.WriteLine("2. PAGO COMPLETO");
+            IMPUT4 = Console.ReadLine();    
+            if(SALIR(IMPUT4))
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
+            while(!int.TryParse(IMPUT4, out OPCECTIVO) || OPCECTIVO < 1 || OPCECTIVO > 2)
+            {
+                Console.WriteLine("INGRESE UNA OPCIÓN VALIDA (1-2): ");
+            }
+            switch (OPCECTIVO)
+            {
+                case 1: 
+                    Console.Write("INGRESE EL MONTO DEL ADELANTO: ");
+                    IMPUT5= Console.ReadLine();
+                    if (SALIR(IMPUT5))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+                    while (!double.TryParse(IMPUT5, out ADELANTO) || ADELANTO <= 0)
+                    {
+                        Console.WriteLine("INGRESE UNA CANTIDAD VALIDA: ");
+                        IMPUT5 = Console.ReadLine();
+                        if (SALIR(IMPUT5))
+                        {
+                            Console.WriteLine("Operación cancelada.");
+                            return;
+                        }
+                    }
+                    if(ADELANTO >= totalFinal)
+                    {
+                        Console.WriteLine("Recuerdar que está en la función abono, si desea cancelar todo ingrese 'SALIR'");
+                        return;
+                    }
+                    else
+                    {
+                        deuda = totalFinal - ADELANTO;
+                        Console.WriteLine("Usted ha abonado S/" + ADELANTO + " y su deuda pendiente es de S/" + deuda);
+                    }
+                    Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
+                    IMPUT6 = Console.ReadLine();
+                    if (SALIR(IMPUT6))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+                    while (string.IsNullOrWhiteSpace(IMPUT6))
+                    {
+                        Console.WriteLine("No puede dejar vacío ni ingresar solo espacios.");
+                        Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
+                        IMPUT6 = Console.ReadLine();
+                        if (SALIR(IMPUT6))
+                        {
+                            Console.WriteLine("Operación cancelada.");
+                            return;
+                        }
+                    }
+                    Console.Write("INGRESE LOS DIAS PARA PAGAR: ");
+                    IMPUT7 = Console.ReadLine();
+                    if (SALIR(IMPUT7))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+                    while (!int.TryParse(IMPUT7, out DIASP) || DIASP <= 0)
+                    {
+                        Console.WriteLine("INGRESE DIAS VALIDOS: ");
+                        IMPUT7 = Console.ReadLine();
+                        if (SALIR(IMPUT7))
+                        {
+                            Console.WriteLine("Operación cancelada.");
+                            return;
+                        }
+                    }
+                    FORMATODEUDA(IMPUT6, deuda, "Adelanto", DIASP, historialTotal);
+                    break;
+
+                case 2:
+                    //VARIABLES LOCALES
+                    string OPCC;
+                    Console.WriteLine("DELIVERY:S/" + costoDelivery);
+                    Console.WriteLine("DIRECCIÓN:" + direccion);
+                    Console.WriteLine("TOTAL FINAL:S/" + totalFinal);
+                    Console.WriteLine("=================================");
+                    Console.WriteLine("DESEA ALGÚN COMPROBANTE DE PAGO (S/N)?: ");
+                    OPCC = Console.ReadLine().ToUpper();
+
+                    if (SALIR(OPCC))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+
+                    while (OPCC != "SI" && OPCC != "S" && OPCC != "NO" && OPCC != "N")
+                    {
+                        Console.WriteLine("DEBE INGRESAR SI O NO");
+                        OPCC = Console.ReadLine().ToUpper();
+
+                        if (OPCC == "SALIR")
+                            return;
+                    }
+
+                    if (OPCC == "SI" || OPCC == "S")
+                    {
+                        TIPOCOMPROBANTE(historialTotal, SUBTOTAL, metodoPago, costoDelivery, direccion, totalFinal);
+                    }
+                    else
+                    {
+                        Console.WriteLine("VENTA REALIZADA Y REGISTRADA");
+                    }
+            }
+        }
+        public static void FORMATODEUDA(string cliente, double totalFinal, string tipoCredito, int diasCredito, string historialTotal)
+        {
+            // VARIABLES PARA TIEMPOS DE CRÉDITO 
+            DateTime fechaVencimiento = DateTime.Now.AddDays(diasCredito);
+            // CREACIÓN DE ARCHIVO TXT DE DEUDAS
+            using (StreamWriter sw = new StreamWriter("DEUDAS.txt", true))
+            {
+                sw.WriteLine("===================================");
+                sw.WriteLine("CLIENTE: " + cliente);
+                sw.WriteLine("TIPO DE CRÉDITO:" + tipoCredito);
+                sw.WriteLine("TOTAL FINAL: S/ " + totalFinal);
+                sw.WriteLine("DIAS PARA PAGAR: " + diasCredito);
+                sw.WriteLine("FECHA DE INICIO: " + DateTime.Now.ToString("dd/MM/yyyy"));
+                sw.WriteLine("FECHA DE FIN: " + fechaVencimiento.ToString("dd/MM/yyyy"));
+                sw.WriteLine("-------------------------------------------");
+                sw.WriteLine("HISTORIAL DE LA COMPRA: " + historialTotal);
+                sw.WriteLine("-------------------------------------------");
+                sw.WriteLine("=========================");
+            }
+        }
+        public static void TIPOCOMPROBANTE(string listaProductos, double subtotal, string metodoPago, double costoDelivery, string direccion, double totalFinal)
+        {
+            //VARIABLES LOCALES
+            int OPC2;
+            string año;
+            string clienteComprobante;
+            //INICIALIZO LA VARIABLES
+            año = DateTime.Now.Year.ToString();
+            Console.WriteLine("Escribe 'SALIR' en cualquier momento para cancelar\n");
+            Console.WriteLine("==============================");
+            Console.WriteLine("ELIJA SU TIPO DE COMPROBANTE: ");
+            Console.WriteLine("1. BOLETA");
+            Console.WriteLine("2. FACTURA");
+            Console.Write("Elija una opción: ");
+            string input = Console.ReadLine();
+            if (SALIR(input))
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
+
+            while (!int.TryParse(input, out OPC2) || OPC2 < 1 || OPC2 > 2)
+            {
+                Console.WriteLine("Ingrese una opción válida (1 o 2): ");
+                input = Console.ReadLine();
+                if (SALIR(input))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+
+            }
+            switch (OPC2)
+            {
+                case 1:
+                    //VARIABLES LOCALES
+                    int numeroBoleta = NUMBOLETA(); 
+                    string archivoBoleta = "BOLETA_"  + "_" + año + "-" + numeroBoleta.ToString("000") + ".txt";
+                    int opcc;
+                    string documento, tipoDocumento;
+                    Console.WriteLine("==============================");
+                    Console.WriteLine("=== BOLETA ====");
+                    Console.WriteLine("==============================");
+                    Console.WriteLine("N° Boleta: " + numeroBoleta);
+                    Console.WriteLine("Ingrese su tipo de documento: ");
+                    Console.WriteLine("1. DNI ");
+                    Console.WriteLine("2. Carnet de extranjería ");
+                    Console.WriteLine("3. Sin documento");
+                    Console.WriteLine("SELECCIONE UNA OPCIÓN: ");
+                    string input1 = Console.ReadLine();
+
+                    if (SALIR(input1))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+
+                    while (!int.TryParse(input1, out opcc) || opcc < 1 || opcc > 3)
+                    {
+                        Console.WriteLine("Ingrese solo 1, 2 o 3");
+                        input1 = Console.ReadLine();
+
+                        if (SALIR(input1))
+                        {
+                            Console.WriteLine("Operación cancelada.");
+                            return;
+                        }
+                    }
+                    switch (opcc)
+                    {
+                        case 1:
+
+                            tipoDocumento = "DNI";
+                            do
+                            {
+                                Console.Write("INGRESE SU DNI DE 8 DIGITOS: ");
+                                documento = Console.ReadLine();
+                                if (SALIR(documento))
+                                {
+                                    Console.WriteLine("Operación cancelada.");
+                                    return;
+                                }
+                                if (documento.Length != 8 || !documento.All(char.IsDigit))
+                                {
+                                    Console.WriteLine("Error: Debe ingresar exactamente 8 números.");
+                                }
+                            } while (documento.Length != 8 || !documento.All(char.IsDigit));
+                            break;
+
+                        case 2:
+                            tipoDocumento = "Carnet de extranjería";
+                            Console.Write("INGRESE SU CARNET: ");
+                            documento = Console.ReadLine();
+                            if (SALIR(input1))
+                            {
+                                Console.WriteLine("Operación cancelada.");
+                                return;
+                            }
+                            break;
+                        case 3:
+                            tipoDocumento = "Sin documento";
+                            documento = "-";
+                            break;
+
+                        default:
+                        Console.WriteLine("Opción inválida");
+                        return;
+                    }
+
+                   Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
+                   clienteComprobante = Console.ReadLine();
+                   if (SALIR(clienteComprobante))
+                   {
+                       Console.WriteLine("Operación cancelada.");
+                       return;
+                   }
+                    MODELOBOLETA(numeroBoleta, archivoBoleta, DateTime.Now, clienteComprobante, listaProductos, subtotal, metodoPago, costoDelivery, direccion, totalFinal);
+                    break;
+                case 2:
+                            int numeroFactura = NUMFACTURA();
+                            string archivoFactura = "FACTURA_"  + "-" + numeroFactura.ToString("000") + ".txt";
+                            string codigo;
+                            double baseImponible = subtotal / 1.18;
+                            double igv = subtotal - baseImponible;
+                            Console.WriteLine("==============================");
+                            Console.WriteLine("=== FACTURA===");
+                            Console.WriteLine("==============================");
+                            Console.WriteLine("N° Factura: F001-" + numeroFactura.ToString("0000"));
+                            string fecha = DateTime.Now.ToString("yyyy-MM-dd");
+                            do
+                            {
+                                Console.Write("INGRESE SU RUC DE 11 DIGITOS: ");
+                                codigo = Console.ReadLine();
+                                    if (SALIR(codigo))
+                                    {
+                                        Console.WriteLine("Operación cancelada.");
+                                        return;
+                                    }
+                                    if (codigo.Length != 11 || !codigo.All(char.IsDigit))
+                                    {
+                                        Console.WriteLine("Error: Debe ingresar exactamente 11 números.");
+                                    }
+
+                            } while (codigo.Length != 11 || !codigo.All(char.IsDigit));
+                           Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
+                           clienteComprobante = Console.ReadLine();
+                                    if (SALIR(clienteComprobante))
+                                    {
+                                        Console.WriteLine("Operación cancelada.");
+                                        return;
+                                    }
+                                    MODELOFACTURA(numeroFactura, baseImponible, codigo, igv, archivoFactura, DateTime.Now, clienteComprobante, listaProductos, subtotal, metodoPago, costoDelivery, direccion, totalFinal);
+                    break;
+            }
+            Console.WriteLine("Comprobante emitido con éxito.");
+        }
+        public static (double costoDelivery, string direccion) DELIVERY(double total)
+        {
+            double costoDelivery;
+            string direccion = "No aplica";
+            Console.WriteLine("==============================");
+            Console.WriteLine("TOTAL ACTUAL: S/" + total);
+            if (total < 20)
+            {
+                Console.WriteLine("Delivery no disponible para compras menores a S/20");
+                costoDelivery = 0;
+            }
+            else if (total >= 50)
+            {
+                Console.WriteLine("Tu compra califica para DELIVERY GRATIS");
+
+                Console.Write("DESEAS DELIVERY (SI/NO)?: ");
+                string delivery = Console.ReadLine().ToUpper();
+                if (SALIR(delivery))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+                while (delivery != "SI" && delivery != "NO")
+                {
+                    Console.Write("INGRESE SI O NO: ");
+                    delivery = Console.ReadLine().ToUpper();
+                }
+
+                if (delivery == "SI")
+                {
+                    Console.Write("DIRECCIÓN: ");
+                    direccion = Console.ReadLine();
+                    if (SALIR(direccion))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+                    costoDelivery = 0;
+                    Console.WriteLine("Delivery GRATIS");
+                }
+                else
+                {
+                    costoDelivery = 0;
+                }
+            }
+            else if (total >= 20 && total <= 30)
+            {
+                Console.WriteLine("Delivery disponible: S/5");
+
+                Console.Write("DESEAS DELIVERY (SI/NO)?: ");
+                string delivery = Console.ReadLine().ToUpper();
+                if (SALIR(delivery))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+                while (delivery != "SI" && delivery != "NO")
+                {
+                    Console.Write("INGRESE SI O NO: ");
+                    delivery = Console.ReadLine().ToUpper();
+                    if (SALIR(delivery))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+                }
+
+                if (delivery == "S" || delivery == "SI")
+                {
+                    Console.Write("DIRECCIÓN: ");
+                    direccion = Console.ReadLine();
+                    if (SALIR(direccion))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+                    costoDelivery = 5;
+                }
+                else
+                {
+                    costoDelivery = 0;
+                }
+            }
+            else if (total > 30 && total < 50)
+            {
+                Console.WriteLine("Delivery disponible: S/3");
+
+                Console.Write("DESEAS DELIVERY (SI/NO)?: ");
+                string delivery = Console.ReadLine().ToUpper();
+                if (SALIR(delivery))
+                {
+                    Console.WriteLine("Operación cancelada.");
+                    return;
+                }
+                while (delivery != "SI" && delivery != "NO")
+                {
+                    Console.Write("INGRESE SI O NO: ");
+                    delivery = Console.ReadLine().ToUpper();
+                }
+
+                if (delivery == "S" || delivery == "SI")
+                {
+                    Console.Write("DIRECCIÓN: ");
+                    direccion = Console.ReadLine();
+                    if (SALIR(direccion))
+                    {
+                        Console.WriteLine("Operación cancelada.");
+                        return;
+                    }
+                    costoDelivery = 3;
+                }
+                else
+                {
+                    costoDelivery = 0;
+                }
+            }
+            return (costoDelivery, direccion);
         }
         public static int NUMBOLETA()
         {
-            string archivo = "BASEDATOS.txt";
+            string archivo = "CONTADOR_BOLETA.txt";
             if (!File.Exists(archivo))
             {
                 File.WriteAllText(archivo, "0");
@@ -408,7 +1051,7 @@ namespace PROYECTOFINAL
         }
         public static int NUMFACTURA()
         {
-            string archivo = "contador_factura.txt";
+            string archivo = "CONTADOR_FACTURA.txt";
             if (!File.Exists(archivo))
             {
                 File.WriteAllText(archivo, "0");
