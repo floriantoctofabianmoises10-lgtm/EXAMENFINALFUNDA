@@ -11,6 +11,10 @@ namespace PROYECTOFINAL
 {
     internal class Program
     {
+        //ARCHIVOS GLOBALES
+        static string archivo = "PROVEEDORES.txt";
+        static string archivoDeudores = "DEUDAS.txt";
+        
         //VARIABLES GLOBALES
         static List<string> productosGlobal = new List<string>();
         static int totalVentas = 0;
@@ -50,20 +54,103 @@ namespace PROYECTOFINAL
         //SESION
         public static void REINICIODATOS()
         {
-            //REINICIAR DATOS A CERO
+            totalVentas = 0;
+            gananciasDia = 0;
+            totalProductosVendidos = 0;
+
+            productosVendidos.Clear();
+            productosGlobal.Clear();
         }
         public static void CARGARSESION()
         {
-            //CARGAR SESIÓN
-            //CREANDO ARCHIVOS TXT
+            if (!File.Exists("SESION.txt"))
+            {
+                GUARDARSESION();
+                return;
+            }
+
+            string[] lineas = File.ReadAllLines("SESION.txt");
+
+            if (lineas.Length == 0)
+            {
+                REINICIODATOS();
+                GUARDARSESION();
+                return;
+            }
+
+            DateTime fecha;
+
+            if (!DateTime.TryParse(lineas[0], out fecha))
+            {
+                REINICIODATOS();
+                GUARDARSESION();
+                return;
+            }
+
+            if (fecha.Date == DateTime.Today)
+            {
+                CARGARVENTASDIA(); // Reconstruye todas las variables
+            }
+            else
+            {
+                REINICIODATOS();
+                GUARDARSESION();   // Inicia un nuevo día
+            }
         }
         public static void CARGARVENTASDIA()
         {
+            if (!File.Exists("SESION.txt"))
+                return;
 
+            string[] lineas = File.ReadAllLines("SESION.txt");
+
+            if (lineas.Length < 4)
+                return;
+
+            DateTime fecha;
+
+            if (!DateTime.TryParse(lineas[0], out fecha))
+                return;
+
+            // Solo reconstruir si la sesión corresponde al día de hoy
+            if (fecha.Date != DateTime.Today)
+                return;
+
+            totalVentas = int.Parse(lineas[1]);
+            gananciasDia = double.Parse(lineas[2]);
+            totalProductosVendidos = double.Parse(lineas[3]);
+
+            productosVendidos.Clear();
+
+            for (int i = 4; i < lineas.Length; i++)
+            {
+                string[] datos = lineas[i].Split('|');
+
+                if (datos.Length == 2)
+                {
+                    productosVendidos.Add(
+                        datos[0],
+                        double.Parse(datos[1])
+                    );
+                }
+            }
         }
-        //METODO GUARDAR SESIÓN
-        //METODO 
-        //VENTAS
+        public static void GUARDARSESION()
+        {
+            using (StreamWriter sw = new StreamWriter("SESION.txt"))
+            {
+                sw.WriteLine(DateTime.Today.ToString("dd/MM/yyyy"));
+                sw.WriteLine(totalVentas);
+                sw.WriteLine(gananciasDia);
+                sw.WriteLine(totalProductosVendidos);
+
+                foreach (var p in productosVendidos)
+                {
+                    sw.WriteLine(p.Key + "|" + p.Value);
+                }
+            }
+        }
+
         public static void REGISTROVENTAS()
         {
             string[] linea = LEERARCHIVO();
@@ -571,7 +658,8 @@ namespace PROYECTOFINAL
                     return;
                 }
             }
-            FORMATODEUDA(IMPUT8, totalFinal, "Credito", DIASPAGO, historialTotal);
+            double aCuenta = 0;
+            FORMATODEUDA(IMPUT8, totalFinal, "Credito", DIASPAGO, historialTotal,aCuenta);
         }
         public static void MPYAPE_TRANSFERENCIA(double SUBTOTAL, double costoDelivery, string direccion, string historialTotal, string metodoPago)
         {
@@ -665,11 +753,10 @@ namespace PROYECTOFINAL
                         Console.WriteLine("Recuerdar que está en la función abono, si desea cancelar todo ingrese 'SALIR'");
                         return;
                     }
-                    else
-                    {
-                        deuda = totalFinal - ADELANTO;
-                        Console.WriteLine("Usted ha abonado S/" + ADELANTO + " y su deuda pendiente es de S/" + deuda);
-                    }
+
+                    deuda = totalFinal - ADELANTO;
+                    Console.WriteLine("Usted ha abonado S/" + ADELANTO + " y su deuda pendiente es de S/" + deuda);
+
                     Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
                     IMPUT6 = Console.ReadLine();
                     if (SALIR(IMPUT6))
@@ -705,7 +792,13 @@ namespace PROYECTOFINAL
                             return;
                         }
                     }
-                    FORMATODEUDA(IMPUT6, deuda, "Adelanto", DIASP, historialTotal);
+                    double aCuenta = ADELANTO;
+                    double saldo = totalFinal - aCuenta;
+                    FORMATODEUDA(IMPUT6, totalFinal, "Adelanto", DIASP, historialTotal, aCuenta);
+                    Console.WriteLine("=== DEUDA REGISTRADA ===");
+                    Console.WriteLine("TOTAL: S/ " + totalFinal);
+                    Console.WriteLine("A CUENTA: S/ " + aCuenta);
+                    Console.WriteLine("SALDO: S/ " + saldo);
                     break;
 
                 case 2:
@@ -743,8 +836,11 @@ namespace PROYECTOFINAL
                     }
             }
         }
-        public static void FORMATODEUDA(string cliente, double totalFinal, string tipoCredito, int diasCredito, string historialTotal)
+        public static void FORMATODEUDA(string cliente, double totalFinal,string tipoCredito, int diasCredito, string historialTotal, double aCuenta)
         {
+            //CALCULOS
+
+            double SaldoRest= totalFinal- aCuenta;
             // VARIABLES PARA TIEMPOS DE CRÉDITO 
             DateTime fechaVencimiento = DateTime.Now.AddDays(diasCredito);
             // CREACIÓN DE ARCHIVO TXT DE DEUDAS
@@ -752,8 +848,10 @@ namespace PROYECTOFINAL
             {
                 sw.WriteLine("===================================");
                 sw.WriteLine("CLIENTE: " + cliente);
-                sw.WriteLine("TIPO DE CRÉDITO:" + tipoCredito);
-                sw.WriteLine("TOTAL FINAL: S/ " + totalFinal);
+                sw.WriteLine("TIPO DE CRÉDITO: " + tipoCredito);
+                sw.WriteLine("TOTAL FINAL:  " + totalFinal);
+                sw.WriteLine("A CUENTA:  " + aCuenta);
+                sw.WriteLine("SALDO RESTANTE:  " + SaldoRest);
                 sw.WriteLine("DIAS PARA PAGAR: " + diasCredito);
                 sw.WriteLine("FECHA DE INICIO: " + DateTime.Now.ToString("dd/MM/yyyy"));
                 sw.WriteLine("FECHA DE FIN: " + fechaVencimiento.ToString("dd/MM/yyyy"));
@@ -1069,81 +1167,1284 @@ namespace PROYECTOFINAL
         // ESTADISTICA DE VENTAS
         public static void ESTADISTICAS()
         {
-            //CREACIÓN DE ESTADITICAS
+            Console.WriteLine("=========== ESTADÍSTICAS ===========");
+            Console.WriteLine("Total ventas: " + totalVentas);
+            Console.WriteLine("Ganancias: S/ " + gananciasDia);
+            Console.WriteLine("Productos vendidos: " + totalProductosVendidos);
+
+            Console.WriteLine("\nProductos más vendidos:");
+
+            foreach (var p in productosVendidos.OrderByDescending(x => x.Value))
+            {
+                Console.WriteLine(p.Key + " -> " + p.Value);
+            }
         }
         public static void CIERRECAJA()
         {
-            //CREACIÓN DE CIERRE DE CAJA, CON ARCHIVO TXT
+            public static void CIERRECAJA()
+        {
+            using (StreamWriter sw = new StreamWriter("CIERRE_CAJA.txt", true))
+            {
+                sw.WriteLine("==================================");
+                sw.WriteLine(DateTime.Now);
+                sw.WriteLine("Ventas: " + totalVentas);
+                sw.WriteLine("Ganancias: S/ " + gananciasDia);
+                sw.WriteLine("Productos vendidos: " + totalProductosVendidos);
+
+                sw.WriteLine("Productos:");
+
+                foreach (var p in productosVendidos)
+                {
+                    sw.WriteLine(p.Key + " -> " + p.Value);
+                }
+
+                sw.WriteLine("==================================");
+            }
+
+            Console.WriteLine("Cierre de caja generado.");
+        }
         }
         
         //PROVEEDORES
-        public static void OBTENERIDPROV()
+        public static int OBTENERIDPROV()
         {
+            VERIFICAR();
+            int maxId = 0;
+            try
+            {
+                string[] lineas = File.ReadAllLines(archivo);
+                foreach (string l in lineas)
+                {
+                    // Observación METODO MODIFICAR: Valida líneas vacías, nulas o incorrectas
+                    if (string.IsNullOrWhiteSpace(l)) continue;
+                    string[] datos = l.Split('|');
 
+                    // Valida que la línea tenga la estructura correcta antes de procesar
+                    if (datos.Length >= 3 && int.TryParse(datos[0].Trim(), out int id))
+                    {
+                        if (id > maxId) maxId = id;
+                    }
+                }
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine("Hubo un problema al leer los IDs: " + ex.Message);
+            }
+            return maxId + 1;
         }
         public static void VERIFICAR()
         {
-            //VERIFICAR CREACIÓN CORRECTA DE ARCHIVOS
+            try
+            {
+                if (!File.Exists(archivo))
+                {
+                    using (StreamWriter sw = File.CreateText(archivo)) { }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al intentar verificar el archivo: " + ex.Message);
+            }
         }
         public static void MENUPROV()
         {
+            string entrada = "";
+            do
+            {
+                Console.WriteLine("=================================");
+                Console.WriteLine("      MÓDULO DE PROVEEDORES      ");
+                Console.WriteLine("=================================");
+                Console.WriteLine("1. Mostrar proveedores registrados");
+                Console.WriteLine("2. Registrar nuevos proveedores");
+                Console.WriteLine("3. Modificar datos de un proveedor");
+                Console.WriteLine("4. Volver al menú principal");
+                Console.Write("Seleccione una opción: ");
+                entrada = Console.ReadLine()?.Trim();
 
+                if (entrada?.ToUpper() == "SALIR") return;
+
+                // Observación METODO MENUPROV: Convierte la opción a número usando TryParse
+                if (int.TryParse(entrada, out int opcion))
+                {
+                    switch (opcion)
+                    {
+                        case 1: MOSTRARPROV(); break;
+                        case 2: AGREGARPROV(); break;
+                        case 3: MODIFICARPROV(); break;
+                        case 4: Console.WriteLine("Regresando..."); break;
+                        // Observación METODO MENUPROV: Si ingresa un número fuera de rango, avisa controladamente
+                        default: Console.WriteLine("Opción no válida. Ingrese un número del índice (1 al 4)."); break;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Por favor, ingrese un número válido.");
+                }
+
+            } while (entrada != "4");
         }
         public static void MOSTRARPROV()
         {
+            string[] lineas = File.ReadAllLines(archivo)
+            if (lineas.Length == 0)
+            {
+                Console.WriteLine("No hay proveedores registrados.");
+                return;
+            }
+            Console.WriteLine("==============================================");
+            Console.WriteLine("ID | NOMBRE | RUC");
+            Console.WriteLine("==============================================");
+            foreach (string linea in lineas)
+            {
+                if (string.IsNullOrWhiteSpace(linea)) continue;
 
+                string[] datos = linea.Split('|');
+
+                Console.WriteLine(
+                    $"{datos[0].Trim(),-5}" +
+                    $"{datos[1].Trim(),-25}" +
+                    $"{datos[2].Trim()}"
+                );
+            }
         }
         public static void AGREGARPROV()
         {
+            VERIFICAR();
+            bool seguirRegistrando = true;
+            while (seguirRegistrando)
+            {
+                // Observación METODO AGREGAR: Encabezado mejorado y estético
+                Console.WriteLine("\n=========================================");
+                Console.WriteLine("     REGISTRO DE NUEVO PROVEEDOR         ");
+                Console.WriteLine("=========================================");
 
+                int id = OBTENERIDPROV();
+                Console.WriteLine("ID asignado por el sistema: " + id);
+
+                string nombre = "";
+                while (true)
+                {
+                    Console.Write("Ingrese el nombre del proveedor: ");
+                    nombre = Console.ReadLine()?.Trim();
+
+                    // Observación METODO AGREGAR: Llama a la lógica de SALIR global en vez de hacer validación propia
+                    if (nombre?.ToUpper() == "SALIR") return;
+
+                    // Observación METODO AGREGAR: Valida que no esté vacío y que no contenga números
+                    if (string.IsNullOrWhiteSpace(nombre))
+                    {
+                        Console.WriteLine("El nombre es obligatorio y no puede quedar vacío.");
+                    }
+                    else if (nombre.Any(char.IsDigit))
+                    {
+                        Console.WriteLine("Error: El nombre del proveedor no puede contener números.");
+                    }
+                    else
+                    {
+                        break; // Entrada válida
+                    }
+                }
+
+                string ruc = "";
+                while (true)
+                {
+                    Console.Write("Ingrese el número de RUC (11 dígitos): ");
+                    ruc = Console.ReadLine()?.Trim();
+
+                    if (ruc?.ToUpper() == "SALIR") return;
+
+                    // Observación METODO AGREGAR: Se eliminó el tipo 'long'. Se valida carácter por carácter,
+                    // y se asegura de que no sea una cadena de puros ceros (00000000000).
+                    if (ruc.Length == 11 && ruc.All(char.IsDigit))
+                    {
+                        if (ruc == "00000000000")
+                        {
+                            Console.WriteLine("RUC inválido. No se permite un RUC compuesto solo por ceros.");
+                        }
+                        else
+                        {
+                            break; // RUC completamente válido
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("RUC inválido. Deben ser exactamente 11 dígitos numéricos.");
+                    }
+                }
+                bool repetido = false;
+
+                string[] lineas = File.ReadAllLines(archivo);
+
+                foreach (string linea in lineas)
+                {
+                    if (string.IsNullOrWhiteSpace(linea)) continue;
+
+                    string[] datos = linea.Split('|');
+                    if (datos.Length < 3) continue;
+
+                    if (datos[1].Trim().Equals(nombre, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine("Ya existe un proveedor con ese nombre.");
+                        repetido = true;
+                        break;
+                    }
+
+                    if (datos[2].Trim() == ruc)
+                    {
+                        Console.WriteLine("Ya existe un proveedor con ese RUC.");
+                        repetido = true;
+                        break;
+                    }
+                }
+
+                if (repetido)
+                    continue;
+                try
+                {
+                    // Observación OJO 3: Salto de línea limpio para evitar sobreescritura
+                    string lineaGuardar = id + " | " + nombre + " | " + ruc;
+                    File.AppendAllText(archivo, lineaGuardar + Environment.NewLine);
+                    Console.WriteLine("El proveedor se guardó correctamente.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("No se pudo escribir en el archivo: " + ex.Message);
+                }
+
+                Console.Write("\n¿QUIERE REGISTRAR OTRO PROVEEDOR? (S/N): ");
+                string respuesta = Console.ReadLine()?.Trim().ToUpper();
+                while (string.IsNullOrWhiteSpace(respuesta) ||
+                          !(respuesta.Trim().ToUpper() == "S" || respuesta.Trim().ToUpper() == "SI" ||
+                            respuesta.Trim().ToUpper() == "N" || respuesta.Trim().ToUpper() == "NO"))
+                {
+                    Console.Write("Ingrese SI o NO: ");
+                    respuesta = Console.ReadLine();
+                    if (SALIR(respuesta)) return;
+                }
+            }
         }
         public static void MODIFICARPROV()
         {
+            VERIFICAR();
+            try
+            {
+                string[] lineas = File.ReadAllLines(archivo);
 
+                // Observación METODO MODIFICAR: Validación de líneas vacías o nulas en el archivo
+                if (lineas.Length == 0 || lineas.All(string.IsNullOrWhiteSpace))
+                {
+                    Console.WriteLine("No hay proveedores registrados para modificar.");
+                    return;
+                }
+
+                Console.Write("\nIngrese el ID o el nombre del proveedor a modificar: ");
+                string buscar = Console.ReadLine()?.Trim();
+                if (buscar?.ToUpper() == "SALIR") return;
+                if (string.IsNullOrWhiteSpace(buscar)) return;
+
+                // Observación OJO 5: Validación explícita usando TryParse
+                bool esId = int.TryParse(buscar, out int idBuscar);
+                bool cambiosRealizados = false;
+
+                for (int i = 0; i < lineas.Length; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(lineas[i])) continue;
+                    string[] datos = lineas[i].Split('|');
+                    if (datos.Length < 3) continue;
+
+                    if (!int.TryParse(datos[0].Trim(), out int idActual)) continue;
+                    string nombreActual = datos[1].Trim();
+
+                    bool encontrado = false;
+                    if (esId && idActual == idBuscar) encontrado = true;
+                    if (!esId && nombreActual.IndexOf(buscar, StringComparison.OrdinalIgnoreCase) >= 0) encontrado = true;
+
+                    if (encontrado)
+                    {
+                        Console.WriteLine("\nProveedor encontrado: " + lineas[i]);
+
+                        // Validar el nuevo nombre (solo letras)
+                        string nuevoNombre;
+                        while (true)
+                        {
+                            Console.Write("Nuevo nombre (ENTER para mantener): ");
+                            nuevoNombre = Console.ReadLine()?.Trim();
+                            if (string.IsNullOrEmpty(nuevoNombre)) break; // Mantiene el original
+                            if (nuevoNombre.ToUpper() == "SALIR") return;
+                            if (nuevoNombre.Any(char.IsDigit)) Console.WriteLine("El nombre no puede contener números.");
+                            else break;
+                        }
+
+                        // Validar el nuevo RUC (11 dígitos, no ceros)
+                        string nuevoRuc;
+                        while (true)
+                        {
+                            Console.Write("Nuevo RUC (ENTER para mantener): ");
+                            nuevoRuc = Console.ReadLine()?.Trim();
+                            if (string.IsNullOrEmpty(nuevoRuc)) break; // Mantiene el original
+                            if (nuevoRuc.ToUpper() == "SALIR") return;
+                            if (nuevoRuc.Length == 11 && nuevoRuc.All(char.IsDigit) && nuevoRuc != "00000000000") break;
+                            Console.WriteLine("RUC inválido. Deben ser 11 números válidos.");
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(nuevoNombre)) datos[1] = nuevoNombre;
+                        if (!string.IsNullOrWhiteSpace(nuevoRuc)) datos[2] = nuevoRuc;
+                        bool repetido = false;
+
+                        for (int j = 0; j < lineas.Length; j++)
+                        {
+                            if (j == i) continue; // Ignora el proveedor que se está modificando
+
+                            if (string.IsNullOrWhiteSpace(lineas[j])) continue;
+
+                            string[] datosComparar = lineas[j].Split('|');
+                            if (datosComparar.Length < 3) continue;
+
+                            string nombreComparar = datosComparar[1].Trim();
+                            string rucComparar = datosComparar[2].Trim();
+
+                            if (!string.IsNullOrWhiteSpace(nuevoNombre) &&
+                                nombreComparar.Equals(nuevoNombre, StringComparison.OrdinalIgnoreCase))
+                            {
+                                Console.WriteLine("Ya existe otro proveedor con ese nombre.");
+                                repetido = true;
+                                break;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(nuevoRuc) &&
+                                rucComparar == nuevoRuc)
+                            {
+                                Console.WriteLine("Ya existe otro proveedor con ese RUC.");
+                                repetido = true;
+                                break;
+                            }
+                        }
+
+                        if (repetido)
+                            break; 
+                        lineas[i] = string.Join(" | ", datos);
+                        cambiosRealizados = true;
+                        break;
+                    }
+                }
+
+                if (cambiosRealizados)
+                {
+                    File.WriteAllLines(archivo, lineas);
+                    Console.WriteLine("Los cambios se guardaron correctamente.");
+                }
+                else
+                {
+                    Console.WriteLine("No se encontró ningún proveedor con los datos ingresados.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al modificar: " + ex.Message);
+            }
         }
 
         //REGISTRAR COMPRAS
         public static void AGREGARPROD()
         {
+                string archivo = "BASEDATOS.txt";
 
+                if (!File.Exists(archivo))
+                    File.WriteAllText(archivo, "");
+
+                string[] lineas = File.ReadAllLines(archivo);
+                int ultimoNumero = 0;
+
+                foreach (string linea in lineas)
+                {
+                    if (string.IsNullOrWhiteSpace(linea)) continue;
+
+                    string[] datos = linea.Split('|');
+                    if (datos.Length < 7) continue;
+
+                    string id = datos[0].Trim().ToUpper();
+
+                    if (int.TryParse(id, out int numeroID))
+                    {
+                        if (numeroID > ultimoNumero)
+                            ultimoNumero = numeroID;
+                    }
+                }
+
+                string nuevoID = (ultimoNumero + 1).ToString();
+
+                Console.Clear();
+                Console.WriteLine("========== AGREGAR PRODUCTO ==========");
+                Console.WriteLine("Escribe 'SALIR' para cancelar.");
+                Console.WriteLine("ID generado automáticamente: " + nuevoID);
+
+                Console.Write("NOMBRE DEL PRODUCTO: ");
+                string nombre = Console.ReadLine();
+                if (SALIR(nombre)) return;
+                while (string.IsNullOrWhiteSpace(nombre))
+                {
+                    Console.Write("No puede estar vacío. INGRESE NOMBRE DEL PRODUCTO: ");
+                    nombre = Console.ReadLine();
+                    if (SALIR(nombre)) return;
+                }
+
+                Console.Write("MODELO/DESCRP.: ");
+                string modelo = Console.ReadLine();
+                if (SALIR(modelo)) return;
+                while (string.IsNullOrWhiteSpace(modelo))
+                {
+                    Console.Write("No puede estar vacío. INGRESE MODELO/DESCRP.: ");
+                    modelo = Console.ReadLine();
+                    if (SALIR(modelo)) return;
+                }
+
+                Console.Write("MARCA: ");
+                string marca = Console.ReadLine();
+                if (SALIR(marca)) return;
+                while (string.IsNullOrWhiteSpace(marca))
+                {
+                    Console.Write("No puede estar vacío. INGRESE MARCA: ");
+                    marca = Console.ReadLine();
+                    if (SALIR(marca)) return;
+                }
+
+                Console.Write("PROVEEDOR: ");
+                string proveedor = Console.ReadLine();
+                if (SALIR(proveedor)) return;
+                while (string.IsNullOrWhiteSpace(proveedor))
+                {
+                    Console.Write("No puede estar vacío. INGRESE PROVEEDOR: ");
+                    proveedor = Console.ReadLine();
+                    if (SALIR(proveedor)) return;
+                }
+
+                double stock;
+                string stockTexto;
+                do
+                {
+                    Console.Write("STOCK: ");
+                    stockTexto = Console.ReadLine();
+                    if (SALIR(stockTexto)) return;
+
+                } while (string.IsNullOrWhiteSpace(stockTexto) ||
+                         !double.TryParse(stockTexto.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out stock) ||
+                         stock < 0);
+            
+                Console.Write("UNIDAD: ");
+                string unidad = Console.ReadLine();
+                if (SALIR(unidad)) return;
+                while (string.IsNullOrWhiteSpace(unidad))
+                {
+                    Console.Write("No puede estar vacío. INGRESE UNIDAD: ");
+                    unidad = Console.ReadLine();
+                    if (SALIR(unidad)) return;
+                }
+
+                double precio;
+                string precioTexto;
+                do
+                {
+                    Console.Write("PRECIO: ");
+                    precioTexto = Console.ReadLine();
+                    if (SALIR(precioTexto)) return;
+
+                } while (string.IsNullOrWhiteSpace(precioTexto) ||
+                         !double.TryParse(precioTexto.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out precio) ||
+                         precio <= 0);
+
+                string nuevoProducto = nuevoID + " | " +
+                                       nombre.Trim() + " | " +
+                                       modelo.Trim() + " | " +
+                                       marca.Trim() + " | " +
+                                       stock.ToString(CultureInfo.InvariantCulture).Trim() + " | " +
+                                       unidad.Trim().ToUpper() + " | S/ " +
+                                       precio.ToString("0.00", CultureInfo.InvariantCulture) + " | " +
+                                       proveedor.Trim();
+
+                File.AppendAllText(archivo, nuevoProducto + Environment.NewLine);
+                Console.WriteLine("Producto agregado correctamente.");
         }
         public static void BUSCARPROD()
         {
+            string archivo = "BASEDATOS.txt";
 
+            if (!File.Exists(archivo))
+            {
+                Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                return;
+            }
+
+            string[] lineas = File.ReadAllLines(archivo);
+
+            Console.Clear();
+            Console.WriteLine("========== BUSCAR PRODUCTO ==========");
+            Console.WriteLine("Escribe 'SALIR' para cancelar.");
+            Console.Write("INGRESE NOMBRE, MARCA O ID DEL PRODUCTO: ");
+            string buscar = Console.ReadLine();
+
+            if (SALIR(buscar)) return;
+
+            while (string.IsNullOrWhiteSpace(buscar))
+            {
+                Console.Write("No puede estar vacío. INGRESE NOMBRE, MARCA O ID: ");
+                buscar = Console.ReadLine();
+                if (SALIR(buscar)) return;
+            }
+
+            bool encontrado = false;
+            string textoBuscar = QUITARTILDES(buscar.Trim()).ToUpper();
+
+            foreach (string linea in lineas)
+            {
+                if (string.IsNullOrWhiteSpace(linea)) continue;
+                if (linea.StartsWith("====") || linea.StartsWith("ID") || linea.StartsWith("---")) continue;
+
+                string[] datos = linea.Split('|');
+                if (datos.Length < 7) continue;
+
+                for (int i = 0; i < datos.Length; i++)
+                    datos[i] = datos[i].Trim();
+
+                if (string.IsNullOrWhiteSpace(datos[0]) ||
+                    string.IsNullOrWhiteSpace(datos[1]) ||
+                    string.IsNullOrWhiteSpace(datos[3]))
+                    continue;
+
+                string textoLinea = QUITARTILDES(linea.Trim()).ToUpper();
+
+                if (textoLinea.Contains(textoBuscar))
+                {
+                    Console.WriteLine("ID: " + datos[0] +
+                                      " | Producto: " + datos[1] +
+                                      " | Modelo: " + datos[2] +
+                                      " | Marca: " + datos[3] +
+                                      " | Stock: " + datos[4] +
+                                      " | Unidad: " + datos[5] +
+                                      " | Precio: " + datos[6] +
+                                      (datos.Length >= 8 ? " | Proveedor: " + datos[7] : ""));
+
+                    encontrado = true;
+                }
+            }
+
+            if (!encontrado)
+                Console.WriteLine("Producto no encontrado.");
         }
         public static void MODIFICARPROD()
         {
+            string archivo = "BASEDATOS.txt";
 
+            if (!File.Exists(archivo))
+            {
+                Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                return;
+            }
+
+            string[] lineas = File.ReadAllLines(archivo);
+
+            Console.Clear();
+            Console.WriteLine("========== MODIFICAR PRODUCTO ==========");
+            Console.WriteLine("Escribe 'SALIR' para cancelar.");
+            Console.Write("INGRESE EL ID DEL PRODUCTO A MODIFICAR.... SOLO ID....: ");
+            string idBuscar = Console.ReadLine();
+
+            if (SALIR(idBuscar)) return;
+
+            int numeroBuscado;
+            while (string.IsNullOrWhiteSpace(idBuscar) ||
+                   !int.TryParse(idBuscar.Trim().ToUpper().Substring(1), out numeroBuscado))
+            {
+                Console.Write("ID inválido. INGRESE UN ID: ");
+                idBuscar = Console.ReadLine();
+                if (SALIR(idBuscar)) return;
+            }
+
+            bool encontrado = false;
+
+            for (int i = 0; i < lineas.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lineas[i])) continue;
+
+                string[] datos = lineas[i].Split('|');
+                if (datos.Length < 7) continue;
+
+                for (int j = 0; j < datos.Length; j++)
+                    datos[j] = datos[j].Trim();
+
+                string idActual = datos[0].Trim().ToUpper();
+
+                if (!int.TryParse(idActual, out int numeroActual))
+                    continue;
+
+                if (numeroActual == numeroBuscado)
+                {
+                    encontrado = true;
+
+                    string proveedorActual = datos.Length >= 8 ? datos[7] : "";
+
+                    Console.WriteLine("Producto encontrado:");
+                    Console.WriteLine("ID | PRODUCTO | MODELO | MARCA | STOCK | UNIDAD | PRECIO | PROVEEDOR");
+                    Console.WriteLine("---------------------------------------------------------------------");
+                    Console.WriteLine(lineas[i]);
+                    Console.WriteLine("PRESIONA ENTER PARA MANTENER EL DATO ACTUAL.");
+
+                    Console.Write("NUEVO NOMBRE (" + datos[1] + "): ");
+                    string nombre = Console.ReadLine();
+                    if (SALIR(nombre)) return;
+                    if (string.IsNullOrWhiteSpace(nombre)) nombre = datos[1];
+
+                    Console.Write("NUEVO MODELO (" + datos[2] + "): ");
+                    string modelo = Console.ReadLine();
+                    if (SALIR(modelo)) return;
+                    if (string.IsNullOrWhiteSpace(modelo)) modelo = datos[2];
+
+                    Console.Write("NUEVA MARCA (" + datos[3] + "): ");
+                    string marca = Console.ReadLine();
+                    if (SALIR(marca)) return;
+                    if (string.IsNullOrWhiteSpace(marca)) marca = datos[3];
+
+                    Console.Write("NUEVO PROVEEDOR (" + proveedorActual + "): ");
+                    string proveedor = Console.ReadLine();
+                    if (SALIR(proveedor)) return;
+                    if (string.IsNullOrWhiteSpace(proveedor)) proveedor = proveedorActual;
+
+                    double stock;
+                    Console.Write("NUEVO STOCK (" + datos[4] + "): ");
+                    string stockTexto = Console.ReadLine();
+                    if (SALIR(stockTexto)) return;
+                    if (string.IsNullOrWhiteSpace(stockTexto)) stockTexto = datos[4];
+
+                    while (!double.TryParse(stockTexto.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out stock) || stock < 0)
+                    {
+                        Console.Write("Stock inválido. INGRESE NUEVAMENTE: ");
+                        stockTexto = Console.ReadLine();
+                        if (SALIR(stockTexto)) return;
+                    }
+
+                    Console.Write("NUEVA UNIDAD (" + datos[5] + "): ");
+                    string unidad = Console.ReadLine();
+                    if (SALIR(unidad)) return;
+                    if (string.IsNullOrWhiteSpace(unidad)) unidad = datos[5];
+
+                    double precio;
+                    string precioActual = datos[6].Replace("S/", "").Trim();
+
+                    Console.Write("NUEVO PRECIO (" + precioActual + "): ");
+                    string precioTexto = Console.ReadLine();
+                    if (SALIR(precioTexto)) return;
+                    if (string.IsNullOrWhiteSpace(precioTexto)) precioTexto = precioActual;
+
+                    while (!double.TryParse(precioTexto.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out precio) || precio <= 0)
+                    {
+                        Console.Write("Precio inválido. INGRESE NUEVAMENTE: ");
+                        precioTexto = Console.ReadLine();
+                        if (SALIR(precioTexto)) return;
+                    }
+
+                    lineas[i] = datos[0] + " | " +
+                               nombre.Trim() + " | " +
+                               modelo.Trim() + " | " +
+                               marca.Trim() + " | " +
+                               stock.ToString(CultureInfo.InvariantCulture).Trim() + " | " +
+                               unidad.Trim().ToUpper() + " | S/ " +
+                               precio.ToString("0.00", CultureInfo.InvariantCulture) + " | " +
+                               proveedor.Trim();
+
+                    break;
+                }
+            }
+
+            if (encontrado)
+            {
+                File.WriteAllLines(archivo, lineas);
+                Console.WriteLine("Producto modificado correctamente.");
+            }
+            else
+            {
+                Console.WriteLine("No se encontró un producto con ese ID.");
+            }
         }
         public static void ELIMINARPRODUCTO()
         {
+            string archivo = "BASEDATOS.txt";
 
+            if (!File.Exists(archivo))
+            {
+                Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                return;
+            }
+
+            List<string> lineas = File.ReadAllLines(archivo).ToList();
+
+            Console.Clear();
+            Console.WriteLine("========== ELIMINAR PRODUCTO ==========");
+            Console.WriteLine("Escribe 'SALIR' para cancelar.");
+            Console.Write("INGRESE EL ID DEL PRODUCTO A ELIMINAR....SOLO ID....: ");
+            string idBuscar = Console.ReadLine();
+
+            if (SALIR(idBuscar)) return;
+
+            int numeroBuscado;
+            while (string.IsNullOrWhiteSpace(idBuscar) ||
+                   !int.TryParse(idBuscar.Trim(), out numeroBuscado))
+            {
+                Console.Write("ID inválido. INGRESE UN ID VALIDO: ");
+                idBuscar = Console.ReadLine();
+                if (SALIR(idBuscar)) return;
+            }
+
+            bool encontrado = false;
+
+            for (int i = 0; i < lineas.Count; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lineas[i])) continue;
+
+                string[] datos = lineas[i].Split('|');
+                if (datos.Length < 7) continue;
+
+                for (int j = 0; j < datos.Length; j++)
+                    datos[j] = datos[j].Trim();
+
+                string idActual = datos[0].Trim();
+
+                if (!int.TryParse(idActual, out int numeroActual))
+                    continue;
+
+                if (numeroActual == numeroBuscado)
+                {
+                    encontrado = true;
+
+                    Console.WriteLine("Producto encontrado:");
+                    Console.WriteLine("ID | PRODUCTO | MODELO | MARCA | STOCK | UNIDAD | PRECIO | PROVEEDOR");
+                    Console.WriteLine("---------------------------------------------------------------------");
+                    Console.WriteLine(lineas[i]);
+
+                    Console.Write("¿ESTÁ SEGURO DE QUERER ELIMINAR ESTE PRODUCTO? (S/N): ");
+                    string confirmar = Console.ReadLine();
+
+                    if (SALIR(confirmar)) return;
+
+                    while (string.IsNullOrWhiteSpace(confirmar) ||
+                           !(confirmar.Trim().ToUpper() == "S" || confirmar.Trim().ToUpper() == "SI" ||
+                             confirmar.Trim().ToUpper() == "N" || confirmar.Trim().ToUpper() == "NO"))
+                    {
+                        Console.Write("Ingrese SI o NO: ");
+                        confirmar = Console.ReadLine();
+                        if (SALIR(confirmar)) return;
+                    }
+
+                    if (confirmar.Trim().ToUpper() == "S" || confirmar.Trim().ToUpper() == "SI")
+                    {
+                        lineas.RemoveAt(i);
+
+                        int nuevoNumero = 1;
+
+                        for (int k = 0; k < lineas.Count; k++)
+                        {
+                            if (string.IsNullOrWhiteSpace(lineas[k])) continue;
+
+                            string[] partes = lineas[k].Split('|');
+                            if (partes.Length < 7) continue;
+
+                            string idParte = partes[0].Trim();
+
+                            if (!int.TryParse(idParte, out int numeroTemporal))
+                                continue;
+
+                            partes[0] =nuevoNumero.ToString();
+
+                            for (int p = 0; p < partes.Length; p++)
+                                partes[p] = partes[p].Trim();
+
+                            lineas[k] = string.Join(" | ", partes);
+                            nuevoNumero++;
+                        }
+
+                        File.WriteAllLines(archivo, lineas);
+                        Console.WriteLine("Producto eliminado correctamente.");
+                        Console.WriteLine("Los ID fueron reordenados correctamente.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Eliminación cancelada.");
+                    }
+
+                    break;
+                }
+            }
+
+            if (!encontrado)
+                Console.WriteLine("No se encontró un producto con ese ID.");
         }
         public static void MENUPROD()
         {
+            int opcion;
 
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("=================================");
+                Console.WriteLine("===== MÓDULO DE PROVEEDORES =====");
+                Console.WriteLine("=================================");
+                Console.WriteLine("1. Buscar producto");
+                Console.WriteLine("2. Agregar producto");
+                Console.WriteLine("3. Modificar producto");
+                Console.WriteLine("4. Eliminar producto");
+                Console.WriteLine("5. Volver al menú principal");
+                Console.Write("Seleccione una opción: ");
+
+                string entrada = Console.ReadLine();
+
+                if (SALIR(entrada)) return;
+
+                while (string.IsNullOrWhiteSpace(entrada) ||
+                       !int.TryParse(entrada.Trim(), out opcion) ||
+                       opcion < 1 || opcion > 5)
+                {
+                    Console.Write("Opción inválida. Ingrese un número del 1 al 5: ");
+                    entrada = Console.ReadLine();
+
+                    if (SALIR(entrada)) return;
+                }
+
+                Console.Clear();
+
+                switch (opcion)
+                {
+                    case 1:
+                        BUSCARPROD();
+                        break;
+
+                    case 2:
+                        AGREGARPROD();
+                        break;
+
+                    case 3:
+                        MODIFICARPROD();
+                        break;
+
+                    case 4:
+                        ELIMINARPRODUCTO();
+                        break;
+
+                    case 5:
+                        Console.WriteLine("Volviendo al menú principal...");
+                        break;
+                }
+
+                Console.WriteLine("\nPresione una tecla para continuar...");
+                Console.ReadKey();
+
+            } while (opcion != 5);
         }
 
         // DEUDAS
         public static void DEUDASVENCIDAS()
         {
+            // Verifica que el archivo exista y no esté vacío
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
 
+            string[] lineas = File.ReadAllLines(archivoDeudores); // Lee todas las líneas del archivo
+
+            // Variables para almacenar datos del bloque actual
+            string cliente = "";
+            decimal saldo = 0;
+            int diasCredito = 0;
+            DateTime fechaInicio = DateTime.MinValue;
+
+            bool bloque = false;    // Indica si estamos dentro de un bloque de cliente
+            bool tieneDatos = false; // Indica si ya se encontró SALDO RESTANTE
+
+            Console.WriteLine("=== DEUDAS VENCIDAS ===");
+
+            foreach (string linea in lineas)
+            {
+                if (linea.StartsWith("CLIENTE:"))
+                {
+                    // Inicio de un nuevo bloque de cliente
+                    cliente = linea.Substring("CLIENTE:".Length).Trim();
+                    bloque = true;
+                    tieneDatos = false;
+                }
+                else if (bloque && linea.StartsWith("SALDO RESTANTE:"))
+                {
+                    // Prioridad: usa SALDO RESTANTE si existe (abonos previos)
+                    decimal.TryParse(linea.Substring("SALDO RESTANTE:".Length).Trim(), out saldo);
+                    tieneDatos = true;
+                }
+                else if (bloque && linea.StartsWith("TOTAL FINAL:") && !tieneDatos)
+                {
+                    // Si no hay SALDO RESTANTE, usa el TOTAL FINAL como saldo
+                    decimal.TryParse(linea.Substring("TOTAL FINAL:".Length).Trim(), out saldo);
+                }
+                else if (bloque && linea.StartsWith("DIAS PARA PAGAR:"))
+                {
+                    // Días de crédito otorgados al cliente
+                    int.TryParse(linea.Substring("DIAS PARA PAGAR:".Length).Trim(), out diasCredito);
+                }
+                else if (bloque && linea.StartsWith("FECHA DE INICIO:"))
+                {
+                    // Fecha desde la que corre el crédito
+                    DateTime.TryParse(linea.Substring("FECHA DE INICIO:".Length).Trim(), out fechaInicio);
+                }
+                else if (linea.StartsWith("================"))
+                {
+                    // Fin del bloque: evalúa si está vencido
+                    if (cliente != "" && saldo > 0 && fechaInicio != DateTime.MinValue)
+                    {
+                        DateTime fechaVencimiento = fechaInicio.AddDays(diasCredito); // Calcula vencimiento
+
+                        if (DateTime.Now > fechaVencimiento) // Si ya pasó la fecha límite
+                        {
+                            int diasVencido = (DateTime.Now - fechaVencimiento).Days; // Días de retraso
+
+                            Console.WriteLine("----------------------------");
+                            Console.WriteLine("CLIENTE          : " + cliente);
+                            Console.WriteLine("SALDO PENDIENTE  : S/ " + saldo);
+                            Console.WriteLine("FECHA VENCIMIENTO: " + fechaVencimiento.ToString("dd/MM/yyyy"));
+                            Console.WriteLine("DÍAS VENCIDO     : " + diasVencido + " día(s)");
+                        }
+                    }
+
+                    // Reset para el siguiente bloque
+                    cliente = "";
+                    saldo = 0;
+                    diasCredito = 0;
+                    fechaInicio = DateTime.MinValue;
+                    bloque = false;
+                    tieneDatos = false;
+                }
+            }
+
+            Console.WriteLine("============================")
         }
-        public static void ABONARDEUDA()
+        public static void ABONARDEUDA(string archivoDeudores)
         {
             //SOLO CUANDO SE ABONE COMPLETAMENTE LA DEUDA, RECIEN IMPRIMIR COMPROBANTE
+            // Verifica que el archivo exista y no esté vacío
+            // VARIABLE DE HISTORIAL
+            string historialCompra = "";
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
+
+            Console.WriteLine("Escribe 'SALIR' en cualquier momento para cancelar\n");
+
+            // === INGRESO DE CLIENTE ===
+            Console.Write("INGRESE EL NOMBRE DEL CLIENTE: ");
+            string clienteBuscar = Console.ReadLine().Trim();
+            if (clienteBuscar.ToUpper() == "SALIR") return;
+            BUSCARDEUDA(archivoDeudores, clienteBuscar);
+            // === INGRESO Y VALIDACIÓN DEL MONTO ===
+            string inputMonto;
+            double montoAbono;
+
+            Console.Write("INGRESE EL MONTO A ABONAR: S/ ");
+            inputMonto = Console.ReadLine();
+            if (inputMonto.ToUpper() == "SALIR") return;
+
+            // Solo acepta números positivos
+            while (!double.TryParse(inputMonto, out montoAbono) || montoAbono <= 0)
+            {
+                Console.WriteLine("Monto inválido. Ingrese un valor mayor a 0:");
+                inputMonto = Console.ReadLine();
+                if (inputMonto.ToUpper() == "SALIR") return;
+            }
+
+            // === MÉTODO DE PAGO (método separado explícito) ===
+            string metodoPago = METODOPAGO();
+            if (metodoPago == null) return; // Si canceló en METODOPAGO, sale
+
+            // === LECTURA Y PROCESO DEL ARCHIVO ===
+            string[] lineas = File.ReadAllLines(archivoDeudores);
+            List<string> nuevasLineas = new List<string>();  // Guardará las líneas finales
+            List<string> bloqueTemporal = new List<string>(); // Líneas del bloque actual
+
+            bool bloqueCliente = false;  // Estamos en el bloque del cliente buscado
+            bool encontrado = false;     // Si se encontró el cliente
+            bool tieneSaldo = false;     // Si el bloque tiene SALDO RESTANTE
+            bool saldoCalculado = false; // Si ya se procesó el pago
+            bool guardarBloque = true;   // Si el bloque se guarda (false = deuda cancelada)
+
+            double saldorestante = 0;  // Saldo antes del abono
+            double nuevoSaldo = 0; // Saldo después del abono
+            double vuelto = 0;     // Vuelto si pagó de más
+            double totalFinal = 0;
+            double aCuenta = 0;
+            double saldo = 0;
+
+            string clienteActual = ""; // Nombre del cliente encontrado
+
+            foreach (string linea in lineas)
+            {
+                if (linea.StartsWith("CLIENTE:"))
+                {
+                    // Inicio de bloque: detecta si es el cliente buscado
+                    clienteActual = linea.Substring("CLIENTE:".Length).Trim();
+                    bloqueCliente = clienteActual.Equals(clienteBuscar, StringComparison.OrdinalIgnoreCase);
+                    bloqueTemporal.Clear();
+                    bloqueTemporal.Add(linea);
+                }
+                else if (bloqueCliente && linea.StartsWith("SALDO RESTANTE:"))
+                {
+                    if (bloqueCliente)
+                    {
+                        // Toma el saldo restante de abonos anteriores
+                        double.TryParse(linea.Substring("SALDO RESTANTE:".Length).Trim(), out saldorestante);
+                        tieneSaldo = true;
+                        // No se agrega aquí: se recalculará luego
+                    }
+                    else
+                    {
+                        bloqueTemporal.Add(linea); // Otro cliente: se conserva tal cual
+                    }
+                }
+                else if (linea.StartsWith("TOTAL FINAL:"))
+                {
+                    bloqueTemporal.Add(linea);
+                    if (bloqueCliente && !tieneSaldo)
+                    {
+                        // Si no había SALDO RESTANTE, usa TOTAL FINAL como base
+                        double.TryParse(linea.Substring("TOTAL FINAL:".Length).Trim(), out totalFinal);
+                        tieneSaldo = true;
+                    }
+                }
+                else if (linea.StartsWith("HISTORIAL DE LA COMPRA:"))
+                {
+                    historialCompra = linea.Substring("HISTORIAL DE LA COMPRA:".Length).Trim();
+                }
+                else if (linea.StartsWith("================"))
+                {
+                    // Fin del bloque: aplica el abono
+                    if (bloqueCliente && tieneSaldo && !saldoCalculado)
+                    {
+                        if (montoAbono >= saldorestante)
+                        {
+                            // Pago total o con exceso
+                            nuevoSaldo = 0;
+                            vuelto = Math.Round(montoAbono - saldorestante, 2);
+                            guardarBloque = false; // Elimina la deuda del archivo
+
+                        }
+                        else
+                        {
+                            // Pago parcial: actualiza el saldo restante
+                            nuevoSaldo = Math.Round(saldorestante - montoAbono, 2);
+                            vuelto = 0;
+                            bloqueTemporal.Add("SALDO RESTANTE: " + nuevoSaldo);
+
+                        }
+
+                        saldoCalculado = true;
+                        encontrado = true;
+                    }
+
+                    bloqueTemporal.Add(linea); // Agrega el separador al bloque
+
+                    if (guardarBloque)
+                        nuevasLineas.AddRange(bloqueTemporal); // Conserva el bloque en el archivo
+                    
+                    // Reset para el siguiente bloque
+                    guardarBloque = true;
+                    bloqueCliente = false;
+                    tieneSaldo = false;
+                    saldoCalculado = false;
+                }
+                else
+                {
+                    bloqueTemporal.Add(linea); // Líneas internas del bloque
+                }
+            }
+
+            File.WriteAllLines(archivoDeudores, nuevasLineas); // Sobreescribe el archivo con los cambios
+
+            // === RESULTADO EN CONSOLA ===
+            if (encontrado)
+            {
+                Console.WriteLine("==============================");
+                Console.WriteLine("=== PAGO REGISTRADO ===");
+                Console.WriteLine("CLIENTE      : " + clienteActual);
+                Console.WriteLine("MONTO ABONADO: S/ " + montoAbono);
+                Console.WriteLine("MÉTODO       : " + metodoPago);
+                Console.WriteLine("SALDO FINAL  : S/ " + nuevoSaldo);
+                if (vuelto > 0)
+                    Console.WriteLine("VUELTO       : S/ " + vuelto);
+                Console.WriteLine("==============================");
+
+                // Solo emite comprobante si la deuda fue cancelada completamente
+                if (nuevoSaldo == 0)
+                {
+                    string detalle = "CANCELACION TOTAL DE DEUDA | MONTO: S/ " + saldorestante + " | METODO: " + metodoPago;
+                    TIPOCOMPROBANTE(historialCompra, saldorestante,metodoPago,0, "",nuevoSaldo);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Cliente no encontrado: " + clienteBuscar);
+            }
         }
-        public static void BUSCARDEUDA()
+        public static void BUSCARDEUDA(string archivoDeudores, string nombre)
         {
+            // Verifica que el archivo exista y no esté vacío
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
+
+            bool encontrado = false; // Si se halló el cliente
+            bool imprimir = false;   // Si estamos imprimiendo su bloque
+
+            foreach (string linea in File.ReadLines(archivoDeudores))
+            {
+                if (linea.StartsWith("CLIENTE:"))
+                {
+                    string cliente = linea.Substring("CLIENTE:".Length).Trim();
+                    // Compara ignorando mayúsculas/minúsculas
+                    imprimir = cliente.Equals(nombre, StringComparison.OrdinalIgnoreCase);
+
+                    if (imprimir)
+                    {
+                        Console.WriteLine("=== DEUDOR ENCONTRADO ===");
+                        Console.WriteLine(linea); // Imprime la línea CLIENTE:
+                        encontrado = true;
+                    }
+                }
+                else if (linea.StartsWith("================"))
+                {
+                    if (imprimir)
+                    {
+                        Console.WriteLine("------------------------");
+                        imprimir = false; // Deja de imprimir al llegar al separador
+                    }
+                }
+                else if (imprimir)
+                {
+                    Console.WriteLine(linea); // Imprime los datos internos del bloque
+                }
+            }
+
+            if (!encontrado)
+                Console.WriteLine("No se encontró el cliente: " + nombre);
 
         }
-        public static void IMPRIMIRDEUDOR()
+        public static void IMPRIMIRDEUDOR(string cliente, // Nombre del cliente
+           string totalFinal, // Monto total de la deuda original
+           string aCuenta, // Monto que ya abonó
+           string saldo,  // Saldo pendiente por pagar
+           string dias,  // Días de crédito otorgados
+           string fechaInicio, // Fecha en que inició la deuda
+           string fechaFin, // Fecha límite de pago
+           string tipocred)
         {
+            // Solo imprime el campo si tiene valor, evita líneas vacías
+            if (!string.IsNullOrEmpty(cliente)) Console.WriteLine("CLIENTE: " + cliente);
+            if (!string.IsNullOrEmpty(totalFinal)) Console.WriteLine("TOTAL FINAL: " + totalFinal);
+            if (!string.IsNullOrEmpty(aCuenta)) Console.WriteLine("A CUENTA: " + aCuenta);
+            if (!string.IsNullOrEmpty(saldo)) Console.WriteLine("SALDO RESTANTE: " + saldo);
+            if (!string.IsNullOrEmpty(dias)) Console.WriteLine("DIAS: " + dias);
+            if (!string.IsNullOrEmpty(fechaInicio)) Console.WriteLine("FECHA INICIO: " + fechaInicio);
+            if (!string.IsNullOrEmpty(fechaFin)) Console.WriteLine("FECHA FIN: " + fechaFin);
+            if (!string.IsNullOrEmpty(tipocred)) Console.WriteLine("TIPO DE CRÉDITO: " + tipocred);
 
+            Console.WriteLine("------------------------");
+        }
+        public static void VERDEUDORES(string archivoDeudores)
+        {
+            // Verifica que el archivo exista y no esté vacío
+            if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
+
+            string[] lineas = File.ReadAllLines(archivoDeudores);
+
+            // Variables para acumular datos de cada bloque
+            string cliente = "", totalFinal = "", aCuenta = "", saldo = "",
+                   dias = "", fechaInicio = "", fechaFin = "", tipocred = "";
+
+            Console.WriteLine("===========================");
+            Console.WriteLine("========= DEUDORES ========");
+            Console.WriteLine("===========================");
+
+            foreach (string linea in lineas)
+            {
+                // Extrae cada campo del bloque actual
+                if (linea.StartsWith("CLIENTE:")) cliente = linea.Substring("CLIENTE:".Length).Trim();
+                else if (linea.StartsWith("TOTAL FINAL:")) totalFinal = linea.Substring("TOTAL FINAL:".Length).Trim();
+                else if (linea.StartsWith("A CUENTA:")) aCuenta = linea.Substring("A CUENTA:".Length).Trim();
+                else if (linea.StartsWith("SALDO RESTANTE:")) saldo = linea.Substring("SALDO RESTANTE:".Length).Trim();
+                else if (linea.StartsWith("DIAS PARA PAGAR:")) dias = linea.Substring("DIAS PARA PAGAR:".Length).Trim();
+                else if (linea.StartsWith("FECHA DE INICIO:")) fechaInicio = linea.Substring("FECHA DE INICIO:".Length).Trim();
+                else if (linea.StartsWith("FECHA DE FIN:")) fechaFin = linea.Substring("FECHA DE FIN:".Length).Trim();
+                else if (linea.StartsWith("TIPO DE CRÉDITO:")) tipocred = linea.Substring("TIPO DE CRÉDITO:".Length).Trim();
+                else if (linea.StartsWith("================"))
+                {
+                    // Al llegar al separador, imprime el deudor y resetea
+                    IMPRIMIRDEUDOR(cliente, totalFinal, aCuenta, saldo, dias, fechaInicio, fechaFin, tipocred);
+                    cliente = totalFinal = aCuenta = saldo = dias = fechaInicio = fechaFin = tipocred = "";
+                }
+            }
         }
         public static void MENUDEUDAS()
         {
+            Console.WriteLine("======================");
+            Console.WriteLine("====== OPCIONES ======");
+            Console.WriteLine("======================");
+            Console.WriteLine("1. Ver todos deudores");
+            Console.WriteLine("2. Buscar deudor");
+            Console.WriteLine("3. Abonar / Cancelar");
+            Console.WriteLine("4. Ver deudas vencidas");
+            Console.WriteLine("5. Salir");
 
+            Console.Write("Seleccione opción: ");
+            string opcion = Console.ReadLine();
+            if (opcion.ToUpper() == "SALIR") return;
+
+            int opcionG;
+            // Valida que sea un número entre 1 y 5
+            while (!int.TryParse(opcion, out opcionG) || opcionG < 1 || opcionG > 5)
+            {
+                Console.WriteLine("Ingrese una opción válida (1-5):");
+                opcion = Console.ReadLine();
+                if (opcion.ToUpper() == "SALIR") return;
+            }
+
+            switch (opcionG)
+            {
+                case 1:
+                    VERDEUDORES(archivoDeudores); // Muestra todos los deudores
+                    break;
+                case 2:
+                    Console.Write("INGRESE EL NOMBRE DEL CLIENTE A BUSCAR: ");
+                    string nombre = Console.ReadLine();
+                    if (nombre.ToUpper() == "SALIR") return;
+                    BUSCARDEUDA(archivoDeudores, nombre); // Busca un deudor específico
+                    break;
+                case 3:
+                    ABONARDEUDA(archivoDeudores); // Registra un abono o cancelación
+                    break;
+                case 4:
+                    DEUDASVENCIDAS(archivoDeudores); // Muestra deudas con fecha vencida
+                    break;
+                case 5:
+                    break; // Sale del menú
+            }
         }
         //MENU PRINCIPAL
         static void Main(string[] args)
