@@ -21,9 +21,6 @@ namespace PROYECTOFINAL
         static double gananciasDia = 0;
         static double totalProductosVendidos = 0;
         static Dictionary<string, double> productosVendidos = new Dictionary<string, double>();
-        // VARIABLES GLOBALES
-        static string cliente = "CLIENTE GENERAL";
-        static string clienteComprobante = "";
         //LECTURA DEL ARCHIVO
         static string[] LEERARCHIVO()
         {
@@ -90,11 +87,32 @@ namespace PROYECTOFINAL
             if (fecha.Date == DateTime.Today)
             {
                 CARGARVENTASDIA(); // Reconstruye todas las variables
+            
             }
             else
             {
                 REINICIODATOS();
                 GUARDARSESION();   // Inicia un nuevo día
+            }
+        }
+        public static void GUARDARVENTAHISTORIAL(string cliente,
+                                         string historial,
+                                         double totalFinal,
+                                         string metodoPago)
+        {
+            string archivoVentas = "VENTAS_" + DateTime.Today.ToString("yyyy-MM-dd") + ".txt";
+
+            using (StreamWriter sw = new StreamWriter(archivoVentas, true))
+            {
+                sw.WriteLine("========================================");
+                sw.WriteLine("FECHA: " + DateTime.Now);
+                sw.WriteLine("CLIENTE: " + cliente);
+                sw.WriteLine(historial);
+                sw.WriteLine("----------------------------------------");
+                sw.WriteLine("MÉTODO DE PAGO: " + metodoPago);
+                sw.WriteLine("TOTAL: S/ " + totalFinal);
+                sw.WriteLine("========================================");
+                sw.WriteLine();
             }
         }
         public static void CARGARVENTASDIA()
@@ -139,7 +157,7 @@ namespace PROYECTOFINAL
         {
             using (StreamWriter sw = new StreamWriter("SESION.txt"))
             {
-                sw.WriteLine(DateTime.Today.ToString("dd/MM/yyyy"));
+                sw.WriteLine(DateTime.Today.ToString("yyyy-MM-dd"));
                 sw.WriteLine(totalVentas);
                 sw.WriteLine(gananciasDia);
                 sw.WriteLine(totalProductosVendidos);
@@ -150,6 +168,7 @@ namespace PROYECTOFINAL
                 }
             }
         }
+
 
         public static void REGISTROVENTAS()
         {
@@ -168,7 +187,7 @@ namespace PROYECTOFINAL
                 bool BUSCADOR = false;
                 Console.WriteLine("========== REGISTRAR VENTA ==========");
                 Console.WriteLine("Escribe 'SALIR' en cualquier momento para cancelar\n");
-                Console.WriteLine("INGRESE EL NOMBRE DEL PRODUCTO: ");
+                Console.Write("INGRESE EL NOMBRE DEL PRODUCTO: ");
                 string nomProd = Console.ReadLine();
                 if (SALIR(nomProd))
                 {
@@ -315,7 +334,7 @@ namespace PROYECTOFINAL
                     Console.WriteLine("Producto no encontrado....");
                 }
                 //VARIABLE DE CONFIRMACION
-                Console.Write("DESEA INGRESAR OTRO PRODUCTO: S/N");
+                Console.Write("DESEA INGRESAR OTRO PRODUCTO (S/N): ");
                 IMPUT2 = Console.ReadLine().ToUpper().Trim(); ;
                 if (SALIR(IMPUT2))
                 {
@@ -376,8 +395,19 @@ namespace PROYECTOFINAL
             }
             // VARIABLES PARA EL DELIVERY
             var delivery = DELIVERY(SUBTOTAL);
+
+            if (delivery.direccion == "SALIR")
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
             double costoDelivery = delivery.costoDelivery;
             string direccion = delivery.direccion;
+            if (delivery.direccion == "SALIR")
+            {
+                Console.WriteLine("Operación cancelada.");
+                return;
+            }
             METODOPAGO(SUBTOTAL, historialTotal, direccion, costoDelivery);
             
             File.WriteAllLines("BASEDATOS.txt", linea);
@@ -456,7 +486,6 @@ namespace PROYECTOFINAL
 
                 productosGlobal.Add(Dato[1]);
                 totalProductosVendidos += Cantidad;
-                totalVentas++;
                 if (productosVendidos.ContainsKey(CLAVE))
                 {
                     productosVendidos[CLAVE] += Cantidad;
@@ -533,11 +562,12 @@ namespace PROYECTOFINAL
             //VARIABLES DE ENTRADA
             int OPCM;
             string IMPUT3;
-            Console.WriteLine("===== SELECCIONE SU METODO DE PAGO =====");
+            Console.WriteLine("===== MÉTODOS DE PAGO =====");
             Console.WriteLine("1. YAPE/TRANSFERENCIA");
             Console.WriteLine("2. EFECTIVO (Seleccione si desea pagar o dar un adelanto)");
             Console.WriteLine("3. CRÉDITO");
             Console.WriteLine("4. TARJETA (+4%)");
+            Console.Write("SELECCIONE UNA  OPCIÓN: ");
             IMPUT3 = Console.ReadLine();
             if(SALIR(IMPUT3))
             {
@@ -562,7 +592,7 @@ namespace PROYECTOFINAL
                     MPYAPE_TRANSFERENCIA(subtotal, costoDelivery, direccion, historialTotal, metodoPago);
                     break;
                 case 2:
-                    string metodoPago = "EFECTIVO";
+                    metodoPago = "EFECTIVO";
                     MPEFECTIVO(subtotal, costoDelivery, direccion, historialTotal);
                     break;
                 case 3:
@@ -570,20 +600,21 @@ namespace PROYECTOFINAL
                     MPCREDITO(subtotal, historialTotal);
                     break;
                 case 4:
-                    string metodoPago = "TARJETA";
-                    MPTARJETA(subtotal, costoDelivery, direccion, historialTotal);
+                    metodoPago = "TARJETA";
+                    MPTARJETA(subtotal, costoDelivery, direccion, historialTotal, metodoPago);
                     break;         
             }
         }
         
-        public static void MPTARJETA(double SUBTOTAL, double costoDelivery, string direccion, string historialTotal)
+        public static void MPTARJETA(double SUBTOTAL, double costoDelivery, string direccion, string historialTotal, string metodoPago)
         {
             Console.WriteLine("===== TARJETA =====");
             //VARIAABLES LOCALES
-            double totalFinal = SUBTOTAL + costoDelivery;
+            double totalFinal = (SUBTOTAL + costoDelivery) * 1.04;
             string IMPUT12;
+            string Cliente = "CLIENTE GENERAL";
             // MOSTRAMOS UN RESUMEN ANTES DE PEDIR COMPROBANTE
-            Console.WriteLine("DELIVERY:S/" + costoDelivery);
+           Console.WriteLine("DELIVERY:S/" + costoDelivery);
             Console.WriteLine("DIRECCIÓN:" + direccion);
             Console.WriteLine("TOTAL FINAL:S/" + totalFinal);
             Console.WriteLine("========================================");
@@ -610,12 +641,16 @@ namespace PROYECTOFINAL
 
             if (IMPUT12 == "SI" || IMPUT12 == "S")
             {
-                TIPOCOMPROBANTE(historialTotal, SUBTOTAL,"TARJETA", costoDelivery, direccion, totalFinal);
+                Cliente=TIPOCOMPROBANTE(historialTotal, SUBTOTAL,"TARJETA", costoDelivery, direccion, totalFinal);
             }
             else
             {
                 Console.WriteLine("VENTA REALIZADA Y REGISTRADA");
             }
+            totalVentas++;
+            gananciasDia += totalFinal;
+            GUARDARSESION();
+            GUARDARVENTAHISTORIAL(Cliente, historialTotal, totalFinal, metodoPago);
         }
         public static void MPCREDITO(double totalFinal, string historialTotal)
         {
@@ -667,7 +702,7 @@ namespace PROYECTOFINAL
             //VARIAABLES LOCALES
             double totalFinal = SUBTOTAL + costoDelivery;
             string IMPUT11;
-
+            string Cliente = "CLIENTE GENERAL";
             // MOSTRAMOS UN RESUMEN ANTES DE PEDIR COMPROBANTE
             Console.WriteLine("DELIVERY:S/" + costoDelivery);
             Console.WriteLine("DIRECCIÓN:" + direccion);
@@ -693,12 +728,17 @@ namespace PROYECTOFINAL
 
             if (IMPUT11 == "SI" || IMPUT11 == "S")
             {
-                TIPOCOMPROBANTE(historialTotal, SUBTOTAL, metodoPago, costoDelivery, direccion, totalFinal);
+                Cliente = TIPOCOMPROBANTE(historialTotal, SUBTOTAL, metodoPago, costoDelivery, direccion, totalFinal);
             }
             else
             {
                 Console.WriteLine("VENTA REALIZADA Y REGISTRADA");
             }
+            gananciasDia += totalFinal;
+            totalVentas++;
+
+            GUARDARSESION();
+            GUARDARVENTAHISTORIAL(Cliente, historialTotal, totalFinal, metodoPago);
         }
         public static void MPEFECTIVO( double SUBTOTAL, double costoDelivery, string direccion, string historialTotal)
         {
@@ -804,6 +844,8 @@ namespace PROYECTOFINAL
                 case 2:
                     //VARIABLES LOCALES
                     string OPCC;
+                    string Cliente = "CLIENTE GENERAL";
+
                     Console.WriteLine("DELIVERY:S/" + costoDelivery);
                     Console.WriteLine("DIRECCIÓN:" + direccion);
                     Console.WriteLine("TOTAL FINAL:S/" + totalFinal);
@@ -828,12 +870,17 @@ namespace PROYECTOFINAL
 
                     if (OPCC == "SI" || OPCC == "S")
                     {
-                        TIPOCOMPROBANTE(historialTotal, SUBTOTAL, metodoPago, costoDelivery, direccion, totalFinal);
+                        Cliente = TIPOCOMPROBANTE(historialTotal, SUBTOTAL, metodoPago, costoDelivery, direccion, totalFinal);
                     }
                     else
                     {
                         Console.WriteLine("VENTA REALIZADA Y REGISTRADA");
                     }
+                    totalVentas++;
+                    gananciasDia += totalFinal;
+                    GUARDARSESION();
+                    GUARDARVENTAHISTORIAL(Cliente, historialTotal, totalFinal, metodoPago);
+                    break;
             }
         }
         public static void FORMATODEUDA(string cliente, double totalFinal,string tipoCredito, int diasCredito, string historialTotal, double aCuenta)
@@ -861,12 +908,12 @@ namespace PROYECTOFINAL
                 sw.WriteLine("=========================");
             }
         }
-        public static void TIPOCOMPROBANTE(string listaProductos, double subtotal, string metodoPago, double costoDelivery, string direccion, double totalFinal)
+        public static string TIPOCOMPROBANTE(string listaProductos, double subtotal, string metodoPago, double costoDelivery, string direccion, double totalFinal)
         {
             //VARIABLES LOCALES
             int OPC2;
             string año;
-            string clienteComprobante;
+            string clienteComprobante = "";
             //INICIALIZO LA VARIABLES
             año = DateTime.Now.Year.ToString();
             Console.WriteLine("Escribe 'SALIR' en cualquier momento para cancelar\n");
@@ -879,7 +926,7 @@ namespace PROYECTOFINAL
             if (SALIR(input))
             {
                 Console.WriteLine("Operación cancelada.");
-                return;
+                return "SALIR";
             }
 
             while (!int.TryParse(input, out OPC2) || OPC2 < 1 || OPC2 > 2)
@@ -889,7 +936,7 @@ namespace PROYECTOFINAL
                 if (SALIR(input))
                 {
                     Console.WriteLine("Operación cancelada.");
-                    return;
+                    return "SALIR";
                 }
 
             }
@@ -900,7 +947,7 @@ namespace PROYECTOFINAL
                     int numeroBoleta = NUMBOLETA(); 
                     string archivoBoleta = "BOLETA_"  + "_" + año + "-" + numeroBoleta.ToString("000") + ".txt";
                     int opcc;
-                    string documento, tipoDocumento;
+                    string documento;
                     Console.WriteLine("==============================");
                     Console.WriteLine("=== BOLETA ====");
                     Console.WriteLine("==============================");
@@ -915,7 +962,7 @@ namespace PROYECTOFINAL
                     if (SALIR(input1))
                     {
                         Console.WriteLine("Operación cancelada.");
-                        return;
+                        return "SALIR";
                     }
 
                     while (!int.TryParse(input1, out opcc) || opcc < 1 || opcc > 3)
@@ -926,11 +973,13 @@ namespace PROYECTOFINAL
                         if (SALIR(input1))
                         {
                             Console.WriteLine("Operación cancelada.");
-                            return;
+                            return "SALIR";
                         }
                     }
+                    string tipoDocumento = " "; 
                     switch (opcc)
                     {
+
                         case 1:
 
                             tipoDocumento = "DNI";
@@ -941,7 +990,7 @@ namespace PROYECTOFINAL
                                 if (SALIR(documento))
                                 {
                                     Console.WriteLine("Operación cancelada.");
-                                    return;
+                                    return "SALIR";
                                 }
                                 if (documento.Length != 8 || !documento.All(char.IsDigit))
                                 {
@@ -957,7 +1006,7 @@ namespace PROYECTOFINAL
                             if (SALIR(input1))
                             {
                                 Console.WriteLine("Operación cancelada.");
-                                return;
+                                return "SALIR";
                             }
                             break;
                         case 3:
@@ -967,7 +1016,7 @@ namespace PROYECTOFINAL
 
                         default:
                         Console.WriteLine("Opción inválida");
-                        return;
+                        return "SALIR";
                     }
 
                    Console.Write("INGRESE SU NOMBRE Y APELLIDO: ");
@@ -975,7 +1024,7 @@ namespace PROYECTOFINAL
                    if (SALIR(clienteComprobante))
                    {
                        Console.WriteLine("Operación cancelada.");
-                       return;
+                       return "SALIR";
                    }
                     MODELOBOLETA(numeroBoleta, archivoBoleta, DateTime.Now, clienteComprobante, listaProductos, subtotal, metodoPago, costoDelivery, direccion, totalFinal);
                     break;
@@ -997,7 +1046,7 @@ namespace PROYECTOFINAL
                                     if (SALIR(codigo))
                                     {
                                         Console.WriteLine("Operación cancelada.");
-                                        return;
+                                        return "SALIR";
                                     }
                                     if (codigo.Length != 11 || !codigo.All(char.IsDigit))
                                     {
@@ -1010,16 +1059,18 @@ namespace PROYECTOFINAL
                                     if (SALIR(clienteComprobante))
                                     {
                                         Console.WriteLine("Operación cancelada.");
-                                        return;
+                                        return "SALIR";
                                     }
                                     MODELOFACTURA(numeroFactura, baseImponible, codigo, igv, archivoFactura, DateTime.Now, clienteComprobante, listaProductos, subtotal, metodoPago, costoDelivery, direccion, totalFinal);
                     break;
+                    
             }
             Console.WriteLine("Comprobante emitido con éxito.");
+            return clienteComprobante;
         }
         public static (double costoDelivery, string direccion) DELIVERY(double total)
         {
-            double costoDelivery;
+            double costoDelivery = 0;
             string direccion = "No aplica";
             Console.WriteLine("==============================");
             Console.WriteLine("TOTAL ACTUAL: S/" + total);
@@ -1037,7 +1088,7 @@ namespace PROYECTOFINAL
                 if (SALIR(delivery))
                 {
                     Console.WriteLine("Operación cancelada.");
-                    return;
+                    return(-1, "SALIR");
                 }
                 while (delivery != "SI" && delivery != "NO")
                 {
@@ -1052,7 +1103,7 @@ namespace PROYECTOFINAL
                     if (SALIR(direccion))
                     {
                         Console.WriteLine("Operación cancelada.");
-                        return;
+                        return (-1, "SALIR");
                     }
                     costoDelivery = 0;
                     Console.WriteLine("Delivery GRATIS");
@@ -1071,7 +1122,7 @@ namespace PROYECTOFINAL
                 if (SALIR(delivery))
                 {
                     Console.WriteLine("Operación cancelada.");
-                    return;
+                    return (-1, "SALIR");
                 }
                 while (delivery != "SI" && delivery != "NO")
                 {
@@ -1080,7 +1131,7 @@ namespace PROYECTOFINAL
                     if (SALIR(delivery))
                     {
                         Console.WriteLine("Operación cancelada.");
-                        return;
+                        return (-1, "SALIR");
                     }
                 }
 
@@ -1091,7 +1142,7 @@ namespace PROYECTOFINAL
                     if (SALIR(direccion))
                     {
                         Console.WriteLine("Operación cancelada.");
-                        return;
+                        return (-1, "SALIR");
                     }
                     costoDelivery = 5;
                 }
@@ -1109,7 +1160,7 @@ namespace PROYECTOFINAL
                 if (SALIR(delivery))
                 {
                     Console.WriteLine("Operación cancelada.");
-                    return;
+                    return (-1, "SALIR");
                 }
                 while (delivery != "SI" && delivery != "NO")
                 {
@@ -1124,7 +1175,7 @@ namespace PROYECTOFINAL
                     if (SALIR(direccion))
                     {
                         Console.WriteLine("Operación cancelada.");
-                        return;
+                        return (-1, "SALIR");
                     }
                     costoDelivery = 3;
                 }
@@ -1159,30 +1210,48 @@ namespace PROYECTOFINAL
             File.WriteAllText(archivo, contador.ToString());
             return contador;
         }
-        public static void HISTORIALVENTA()
-        {
-
-        }
 
         // ESTADISTICA DE VENTAS
         public static void ESTADISTICAS()
         {
-            Console.WriteLine("=========== ESTADÍSTICAS ===========");
-            Console.WriteLine("Total ventas: " + totalVentas);
-            Console.WriteLine("Ganancias: S/ " + gananciasDia);
-            Console.WriteLine("Productos vendidos: " + totalProductosVendidos);
+            Console.Clear();
+            Console.WriteLine("==========================================");
+            Console.WriteLine("      ESTADÍSTICAS DE VENTAS DEL DÍA");
+            Console.WriteLine("==========================================");
 
-            Console.WriteLine("\nProductos más vendidos:");
+            Console.WriteLine("VENTAS REALIZADAS      : " + totalVentas);
+            Console.WriteLine("GANANCIA DEL DÍA       : S/ " + gananciasDia.ToString("F2"));
+            Console.WriteLine("PRODUCTOS VENDIDOS     : " + totalProductosVendidos);
+
+            Console.WriteLine("\n==========================================");
+            Console.WriteLine("      PRODUCTOS MÁS VENDIDOS");
+            Console.WriteLine("==========================================");
+
+            if (productosVendidos.Count == 0)
+            {
+                Console.WriteLine("No existen ventas registradas.");
+                return;
+            }
+
+            double maximo = productosVendidos.Max(x => x.Value);
 
             foreach (var p in productosVendidos.OrderByDescending(x => x.Value))
             {
-                Console.WriteLine(p.Key + " -> " + p.Value);
+                int tamañoBarra = (int)Math.Round((p.Value / maximo) * 30);
+
+                Console.WriteLine(
+                    p.Key.PadRight(25) +
+                    " | " +
+                    new string('█', tamañoBarra) +
+                    " " +
+                    p.Value);
             }
+
+            Console.WriteLine("==========================================");
         }
         public static void CIERRECAJA()
         {
-            public static void CIERRECAJA()
-        {
+
             using (StreamWriter sw = new StreamWriter("CIERRE_CAJA.txt", true))
             {
                 sw.WriteLine("==================================");
@@ -1202,13 +1271,13 @@ namespace PROYECTOFINAL
             }
 
             Console.WriteLine("Cierre de caja generado.");
-        }
+
         }
         
         //PROVEEDORES
-        public static int OBTENERIDPROV()
+        public static int OBTENERIDPROV(string archivo)
         {
-            VERIFICAR();
+            VERIFICAR(archivo);
             int maxId = 0;
             try
             {
@@ -1232,7 +1301,7 @@ namespace PROYECTOFINAL
             }
             return maxId + 1;
         }
-        public static void VERIFICAR()
+        public static void VERIFICAR(string archivo)
         {
             try
             {
@@ -1268,9 +1337,9 @@ namespace PROYECTOFINAL
                 {
                     switch (opcion)
                     {
-                        case 1: MOSTRARPROV(); break;
-                        case 2: AGREGARPROV(); break;
-                        case 3: MODIFICARPROV(); break;
+                        case 1: MOSTRARPROV(archivo); break;
+                        case 2: AGREGARPROV(archivo); break;
+                        case 3: MODIFICARPROV(archivo); break;
                         case 4: Console.WriteLine("Regresando..."); break;
                         // Observación METODO MENUPROV: Si ingresa un número fuera de rango, avisa controladamente
                         default: Console.WriteLine("Opción no válida. Ingrese un número del índice (1 al 4)."); break;
@@ -1283,9 +1352,10 @@ namespace PROYECTOFINAL
 
             } while (entrada != "4");
         }
-        public static void MOSTRARPROV()
+        public static void MOSTRARPROV(string archivo)
         {
-            string[] lineas = File.ReadAllLines(archivo)
+            VERIFICAR(archivo);
+            string[] lineas = File.ReadAllLines(archivo);
             if (lineas.Length == 0)
             {
                 Console.WriteLine("No hay proveedores registrados.");
@@ -1307,9 +1377,9 @@ namespace PROYECTOFINAL
                 );
             }
         }
-        public static void AGREGARPROV()
+        public static void AGREGARPROV(string archivo)
         {
-            VERIFICAR();
+            VERIFICAR(archivo);
             bool seguirRegistrando = true;
             while (seguirRegistrando)
             {
@@ -1318,7 +1388,7 @@ namespace PROYECTOFINAL
                 Console.WriteLine("     REGISTRO DE NUEVO PROVEEDOR         ");
                 Console.WriteLine("=========================================");
 
-                int id = OBTENERIDPROV();
+                int id = OBTENERIDPROV(archivo);
                 Console.WriteLine("ID asignado por el sistema: " + id);
 
                 string nombre = "";
@@ -1412,20 +1482,28 @@ namespace PROYECTOFINAL
                 }
 
                 Console.Write("\n¿QUIERE REGISTRAR OTRO PROVEEDOR? (S/N): ");
-                string respuesta = Console.ReadLine()?.Trim().ToUpper();
-                while (string.IsNullOrWhiteSpace(respuesta) ||
-                          !(respuesta.Trim().ToUpper() == "S" || respuesta.Trim().ToUpper() == "SI" ||
-                            respuesta.Trim().ToUpper() == "N" || respuesta.Trim().ToUpper() == "NO"))
+                string respuesta = Console.ReadLine().Trim().ToUpper();
+
+                string[] respuestasValidas = { "S", "SI", "N", "NO" };
+
+                while (true)
                 {
-                    Console.Write("Ingrese SI o NO: ");
-                    respuesta = Console.ReadLine();
-                    if (SALIR(respuesta)) return;
+                    if (SALIR(respuesta))
+                        return;
+
+                    if (respuestasValidas.Contains(respuesta))
+                        break;
+
+                    Console.Write("Respuesta inválida. Ingrese SI o NO: ");
+                    respuesta = Console.ReadLine()?.Trim().ToUpper();
                 }
+                if (respuesta == "N" || respuesta == "NO")
+                    return;
             }
         }
-        public static void MODIFICARPROV()
+        public static void MODIFICARPROV(string archivo)
         {
-            VERIFICAR();
+            VERIFICAR(archivo);
             try
             {
                 string[] lineas = File.ReadAllLines(archivo);
@@ -1676,7 +1754,6 @@ namespace PROYECTOFINAL
 
             string[] lineas = File.ReadAllLines(archivo);
 
-            Console.Clear();
             Console.WriteLine("========== BUSCAR PRODUCTO ==========");
             Console.WriteLine("Escribe 'SALIR' para cancelar.");
             Console.Write("INGRESE NOMBRE, MARCA O ID DEL PRODUCTO: ");
@@ -1742,7 +1819,6 @@ namespace PROYECTOFINAL
 
             string[] lineas = File.ReadAllLines(archivo);
 
-            Console.Clear();
             Console.WriteLine("========== MODIFICAR PRODUCTO ==========");
             Console.WriteLine("Escribe 'SALIR' para cancelar.");
             Console.Write("INGRESE EL ID DEL PRODUCTO A MODIFICAR.... SOLO ID....: ");
@@ -1984,7 +2060,7 @@ namespace PROYECTOFINAL
             {
                 Console.Clear();
                 Console.WriteLine("=================================");
-                Console.WriteLine("===== MÓDULO DE PROVEEDORES =====");
+                Console.WriteLine("===== MÓDULO DE PRODUCTOS =====");
                 Console.WriteLine("=================================");
                 Console.WriteLine("1. Buscar producto");
                 Console.WriteLine("2. Agregar producto");
@@ -2039,7 +2115,7 @@ namespace PROYECTOFINAL
         }
 
         // DEUDAS
-        public static void DEUDASVENCIDAS()
+        public static void DEUDASVENCIDAS(string archivoDeudores)
         {
             // Verifica que el archivo exista y no esté vacío
             if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
@@ -2122,13 +2198,48 @@ namespace PROYECTOFINAL
                 }
             }
 
-            Console.WriteLine("============================")
+            Console.WriteLine("============================");
+        }
+        public static string METODOPAGODEUDA()
+        {
+            while (true)
+            {
+                Console.WriteLine("========== MÉTODO DE PAGO ==========");
+                Console.WriteLine("1. EFECTIVO");
+                Console.WriteLine("2. YAPE/ TRANSFERENCIA");
+                Console.WriteLine("3. PLIN");
+                Console.WriteLine("4. TARJETA");
+                Console.WriteLine("5. CANCELAR");
+                Console.Write("Seleccione una opción: ");
+
+                int opcion;
+
+                if (!int.TryParse(Console.ReadLine(), out opcion))
+                {
+                    Console.WriteLine("Ingrese una opción válida.\n");
+                    continue;
+                }
+
+                switch (opcion)
+                {
+                    case 1: return "EFECTIVO";
+                    case 2: return "YAPE/ TRANSFERENCIA";
+                    case 3: return "PLIN";
+                    case 4: return "TARJETA";
+                    case 5: return null;
+                    default:
+                        Console.WriteLine("Opción inválida.\n");
+                        break;
+                }
+            }
         }
         public static void ABONARDEUDA(string archivoDeudores)
         {
             //SOLO CUANDO SE ABONE COMPLETAMENTE LA DEUDA, RECIEN IMPRIMIR COMPROBANTE
             // Verifica que el archivo exista y no esté vacío
             // VARIABLE DE HISTORIAL
+
+            Console.Clear();
             string historialCompra = "";
             if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
             {
@@ -2143,7 +2254,15 @@ namespace PROYECTOFINAL
             // === INGRESO DE CLIENTE ===
             Console.Write("INGRESE EL NOMBRE DEL CLIENTE: ");
             string clienteBuscar = Console.ReadLine().Trim();
-            if (clienteBuscar.ToUpper() == "SALIR") return;
+
+            if (clienteBuscar.ToUpper() == "SALIR")
+                return;
+
+            clienteBuscar = SELECCIONARCLIENTE(archivoDeudores, clienteBuscar);
+
+            if (clienteBuscar == null)
+                return;
+
             BUSCARDEUDA(archivoDeudores, clienteBuscar);
             // === INGRESO Y VALIDACIÓN DEL MONTO ===
             string inputMonto;
@@ -2152,19 +2271,27 @@ namespace PROYECTOFINAL
             Console.Write("INGRESE EL MONTO A ABONAR: S/ ");
             inputMonto = Console.ReadLine();
             if (inputMonto.ToUpper() == "SALIR") return;
-
+            
             // Solo acepta números positivos
-            while (!double.TryParse(inputMonto, out montoAbono) || montoAbono <= 0)
+            while (!double.TryParse(inputMonto, NumberStyles.Any,
+                    CultureInfo.InvariantCulture, out montoAbono) || montoAbono <= 0)
             {
                 Console.WriteLine("Monto inválido. Ingrese un valor mayor a 0:");
                 inputMonto = Console.ReadLine();
                 if (inputMonto.ToUpper() == "SALIR") return;
+
             }
 
             // === MÉTODO DE PAGO (método separado explícito) ===
-            string metodoPago = METODOPAGO();
+            string metodoPago = METODOPAGODEUDA();
             if (metodoPago == null) return; // Si canceló en METODOPAGO, sale
+            if (metodoPago == "TARJETA")
+            {
+                montoAbono = Math.Round(montoAbono * 1.04, 2);
 
+                Console.WriteLine("SE APLICÓ UN RECARGO DEL 4% POR PAGO CON TARJETA.");
+                Console.WriteLine("MONTO TOTAL COBRADO: S/ " + montoAbono);
+            }
             // === LECTURA Y PROCESO DEL ARCHIVO ===
             string[] lineas = File.ReadAllLines(archivoDeudores);
             List<string> nuevasLineas = new List<string>();  // Guardará las líneas finales
@@ -2180,8 +2307,7 @@ namespace PROYECTOFINAL
             double nuevoSaldo = 0; // Saldo después del abono
             double vuelto = 0;     // Vuelto si pagó de más
             double totalFinal = 0;
-            double aCuenta = 0;
-            double saldo = 0;
+
 
             string clienteActual = ""; // Nombre del cliente encontrado
 
@@ -2364,6 +2490,7 @@ namespace PROYECTOFINAL
         public static void VERDEUDORES(string archivoDeudores)
         {
             // Verifica que el archivo exista y no esté vacío
+            Console.Clear();
             if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
             {
                 Console.WriteLine("===========================");
@@ -2396,6 +2523,7 @@ namespace PROYECTOFINAL
                 else if (linea.StartsWith("================"))
                 {
                     // Al llegar al separador, imprime el deudor y resetea
+
                     IMPRIMIRDEUDOR(cliente, totalFinal, aCuenta, saldo, dias, fechaInicio, fechaFin, tipocred);
                     cliente = totalFinal = aCuenta = saldo = dias = fechaInicio = fechaFin = tipocred = "";
                 }
@@ -2433,7 +2561,15 @@ namespace PROYECTOFINAL
                 case 2:
                     Console.Write("INGRESE EL NOMBRE DEL CLIENTE A BUSCAR: ");
                     string nombre = Console.ReadLine();
-                    if (nombre.ToUpper() == "SALIR") return;
+
+                    if (nombre.ToUpper() == "SALIR")
+                        return;
+
+                    nombre = SELECCIONARCLIENTE(archivoDeudores, nombre);
+
+                    if (nombre == null)
+                        return;
+
                     BUSCARDEUDA(archivoDeudores, nombre); // Busca un deudor específico
                     break;
                 case 3:
@@ -2446,14 +2582,72 @@ namespace PROYECTOFINAL
                     break; // Sale del menú
             }
         }
+        public static string SELECCIONARCLIENTE(string archivoDeudores, string nombre)
+        {
+            List<string> clientes = new List<string>();
+
+            foreach (string linea in File.ReadLines(archivoDeudores))
+            {
+                if (linea.StartsWith("CLIENTE:"))
+                {
+                    string cliente = linea.Substring("CLIENTE:".Length).Trim();
+
+                    if (cliente.IndexOf(nombre, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        if (!clientes.Contains(cliente))
+                            clientes.Add(cliente);
+                    }
+                }
+            }
+
+            if (clientes.Count == 0)
+            {
+                Console.WriteLine("No se encontraron coincidencias.");
+                return null;
+            }
+
+            if (clientes.Count == 1)
+                return clientes[0];
+
+            Console.WriteLine("\nCoincidencias encontradas:");
+
+            for (int i = 0; i < clientes.Count; i++)
+            {
+                Console.WriteLine($"{i + 1}. {clientes[i]}");
+            }
+
+            int opcion;
+
+            while (true)
+            {
+                Console.Write("Seleccione un cliente: ");
+
+                string entrada = Console.ReadLine();
+
+                if (entrada.ToUpper() == "SALIR")
+                    return null;
+
+                if (int.TryParse(entrada, out opcion) &&
+                    opcion >= 1 &&
+                    opcion <= clientes.Count)
+                {
+                    return clientes[opcion - 1];
+                }
+
+                Console.WriteLine("Opción inválida.");
+            }
+        }
         //MENU PRINCIPAL
         static void Main(string[] args)
         {
             int opcion = 0;
             CARGARSESION();
-            CARGARVENTASDIA(); 
+            CARGARVENTASDIA();
+
+            
             while (true) // 🔴 SISTEMA SIEMPRE ENCENDIDO
             {
+                Console.Clear();
                 Console.WriteLine("===============================");
                 Console.WriteLine("= SISTEMA DE VENTAS / COMPRAS= ");
                 Console.WriteLine("===============================");
@@ -2493,7 +2687,7 @@ namespace PROYECTOFINAL
                                 Console.WriteLine("===== FINALIZAR DÍA =====");
                                 Console.WriteLine("==============================");
                                 Console.WriteLine("1. Mostrar estadísticas");
-                                Console.WriteLine("2. Mostrar historial de venta total");
+                                Console.WriteLine("2. Ejecutar cierre de caja");
                                 Console.WriteLine("3. Volver al menú principal");
                                 Console.Write("SELECCIONE: ");
 
