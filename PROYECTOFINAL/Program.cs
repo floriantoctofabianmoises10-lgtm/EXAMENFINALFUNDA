@@ -1248,6 +1248,9 @@ namespace PROYECTOFINAL
             }
 
             Console.WriteLine("==========================================");
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void CIERRECAJA()
         {
@@ -1271,7 +1274,9 @@ namespace PROYECTOFINAL
             }
 
             Console.WriteLine("Cierre de caja generado.");
-
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         
         //PROVEEDORES
@@ -1500,6 +1505,9 @@ namespace PROYECTOFINAL
                 if (respuesta == "N" || respuesta == "NO")
                     return;
             }
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void MODIFICARPROV(string archivo)
         {
@@ -1620,6 +1628,9 @@ namespace PROYECTOFINAL
             {
                 Console.WriteLine("Error al modificar: " + ex.Message);
             }
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
 
         //REGISTRAR COMPRAS
@@ -1741,6 +1752,9 @@ namespace PROYECTOFINAL
 
                 File.AppendAllText(archivo, nuevoProducto + Environment.NewLine);
                 Console.WriteLine("Producto agregado correctamente.");
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void BUSCARPROD()
         {
@@ -1806,6 +1820,9 @@ namespace PROYECTOFINAL
 
             if (!encontrado)
                 Console.WriteLine("Producto no encontrado.");
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void MODIFICARPROD()
         {
@@ -1939,6 +1956,9 @@ namespace PROYECTOFINAL
             {
                 Console.WriteLine("No se encontró un producto con ese ID.");
             }
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void ELIMINARPRODUCTO()
         {
@@ -2051,6 +2071,9 @@ namespace PROYECTOFINAL
 
             if (!encontrado)
                 Console.WriteLine("No se encontró un producto con ese ID.");
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void MENUPROD()
         {
@@ -2199,6 +2222,9 @@ namespace PROYECTOFINAL
             }
 
             Console.WriteLine("============================");
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static string METODOPAGODEUDA()
         {
@@ -2239,7 +2265,6 @@ namespace PROYECTOFINAL
             // Verifica que el archivo exista y no esté vacío
             // VARIABLE DE HISTORIAL
 
-            Console.Clear();
             string historialCompra = "";
             if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
             {
@@ -2302,6 +2327,7 @@ namespace PROYECTOFINAL
             bool tieneSaldo = false;     // Si el bloque tiene SALDO RESTANTE
             bool saldoCalculado = false; // Si ya se procesó el pago
             bool guardarBloque = true;   // Si el bloque se guarda (false = deuda cancelada)
+            bool leyendoHistorial = false;
 
             double saldorestante = 0;  // Saldo antes del abono
             double nuevoSaldo = 0; // Saldo después del abono
@@ -2338,16 +2364,34 @@ namespace PROYECTOFINAL
                 else if (linea.StartsWith("TOTAL FINAL:"))
                 {
                     bloqueTemporal.Add(linea);
-                    if (bloqueCliente && !tieneSaldo)
+                    if (bloqueCliente )
                     {
                         // Si no había SALDO RESTANTE, usa TOTAL FINAL como base
                         double.TryParse(linea.Substring("TOTAL FINAL:".Length).Trim(), out totalFinal);
-                        tieneSaldo = true;
+                        if (!tieneSaldo)
+                        {
+                            saldorestante = totalFinal;
+                            tieneSaldo = true;
+                        }
+                            
                     }
                 }
                 else if (linea.StartsWith("HISTORIAL DE LA COMPRA:"))
                 {
+                    leyendoHistorial = true;
+
                     historialCompra = linea.Substring("HISTORIAL DE LA COMPRA:".Length).Trim();
+                }
+                else if (leyendoHistorial)
+                {
+                    if (linea.StartsWith("-------------------------------------------"))
+                    {
+                        leyendoHistorial = false;
+                    }
+                    else
+                    {
+                        historialCompra += Environment.NewLine + linea;
+                    }
                 }
                 else if (linea.StartsWith("================"))
                 {
@@ -2375,10 +2419,14 @@ namespace PROYECTOFINAL
                         encontrado = true;
                     }
 
-                    bloqueTemporal.Add(linea); // Agrega el separador al bloque
+                   
 
                     if (guardarBloque)
+                    {
                         nuevasLineas.AddRange(bloqueTemporal); // Conserva el bloque en el archivo
+                        bloqueTemporal.Add(linea); // Agrega el separador al bloque
+                    }
+                       
                     
                     // Reset para el siguiente bloque
                     guardarBloque = true;
@@ -2392,7 +2440,16 @@ namespace PROYECTOFINAL
                 }
             }
 
-            File.WriteAllLines(archivoDeudores, nuevasLineas); // Sobreescribe el archivo con los cambios
+            
+            // Guarda el archivo
+            if (nuevasLineas.Count == 0)
+            {
+                File.WriteAllText(archivoDeudores, "");
+            }
+            else
+            {
+                File.WriteAllLines(archivoDeudores, nuevasLineas);
+            }
 
             // === RESULTADO EN CONSOLA ===
             if (encontrado)
@@ -2411,13 +2468,21 @@ namespace PROYECTOFINAL
                 if (nuevoSaldo == 0)
                 {
                     string detalle = "CANCELACION TOTAL DE DEUDA | MONTO: S/ " + saldorestante + " | METODO: " + metodoPago;
-                    TIPOCOMPROBANTE(historialCompra, saldorestante,metodoPago,0, "",nuevoSaldo);
+                    GUARDARVENTAHISTORIAL(clienteActual, historialCompra,totalFinal,metodoPago);
+                    totalVentas++;
+                    gananciasDia += totalFinal;
+                    GUARDARSESION();
+                    TIPOCOMPROBANTE(historialCompra, totalFinal,metodoPago,0, "",totalFinal);
+
                 }
             }
             else
             {
                 Console.WriteLine("Cliente no encontrado: " + clienteBuscar);
             }
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void BUSCARDEUDA(string archivoDeudores, string nombre)
         {
@@ -2475,6 +2540,7 @@ namespace PROYECTOFINAL
            string fechaFin, // Fecha límite de pago
            string tipocred)
         {
+            
             // Solo imprime el campo si tiene valor, evita líneas vacías
             if (!string.IsNullOrEmpty(cliente)) Console.WriteLine("CLIENTE: " + cliente);
             if (!string.IsNullOrEmpty(totalFinal)) Console.WriteLine("TOTAL FINAL: " + totalFinal);
@@ -2489,8 +2555,7 @@ namespace PROYECTOFINAL
         }
         public static void VERDEUDORES(string archivoDeudores)
         {
-            // Verifica que el archivo exista y no esté vacío
-            Console.Clear();
+            // Verifica que el archivo exista y no esté vacío;
             if (!File.Exists(archivoDeudores) || new FileInfo(archivoDeudores).Length == 0)
             {
                 Console.WriteLine("===========================");
@@ -2499,8 +2564,16 @@ namespace PROYECTOFINAL
                 return;
             }
 
+
             string[] lineas = File.ReadAllLines(archivoDeudores);
 
+            if (!lineas.Any(l => l.StartsWith("CLIENTE:")))
+            {
+                Console.WriteLine("===========================");
+                Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
+                Console.WriteLine("===========================");
+                return;
+            }
             // Variables para acumular datos de cada bloque
             string cliente = "", totalFinal = "", aCuenta = "", saldo = "",
                    dias = "", fechaInicio = "", fechaFin = "", tipocred = "";
@@ -2647,7 +2720,7 @@ namespace PROYECTOFINAL
             
             while (true) // 🔴 SISTEMA SIEMPRE ENCENDIDO
             {
-                Console.Clear();
+               
                 Console.WriteLine("===============================");
                 Console.WriteLine("= SISTEMA DE VENTAS / COMPRAS= ");
                 Console.WriteLine("===============================");
