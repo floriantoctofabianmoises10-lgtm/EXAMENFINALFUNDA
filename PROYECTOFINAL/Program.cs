@@ -215,7 +215,7 @@ namespace PROYECTOFINAL
                         DATO[i] = DATO[i].Trim();
                     }
                     //Normalizamos nombre
-                    if (QUITARTILDES(DATO[1]).ToUpper().Contains(QUITARTILDES(nomProd).ToUpper()))
+                    if (QUITARTILDES(DATO[1]).ToUpper().Contains(QUITARTILDES(nomProd).ToUpper())||(QUITARTILDES(DATO[2]).ToUpper().Contains(QUITARTILDES(nomProd).ToUpper())))
                     {
                         BUSCADOR = true;
                         posiciones.Add(x);
@@ -408,6 +408,12 @@ namespace PROYECTOFINAL
                 Console.WriteLine("Operación cancelada.");
                 return;
             }
+            Console.WriteLine("=================================");
+            Console.WriteLine("       RESUMEN DE LA COMPRA       ");
+            Console.WriteLine("=================================");
+            Console.WriteLine(historialTotal);
+            Console.WriteLine("=================================");
+            Console.WriteLine("SUBTOTAL: S/" + SUBTOTAL);
             METODOPAGO(SUBTOTAL, historialTotal, direccion, costoDelivery);
             
             File.WriteAllLines("BASEDATOS.txt", linea);
@@ -614,9 +620,10 @@ namespace PROYECTOFINAL
             string IMPUT12;
             string Cliente = "CLIENTE GENERAL";
             // MOSTRAMOS UN RESUMEN ANTES DE PEDIR COMPROBANTE
-           Console.WriteLine("DELIVERY:S/" + costoDelivery);
+            Console.WriteLine("DELIVERY:S/" + costoDelivery);
             Console.WriteLine("DIRECCIÓN:" + direccion);
             Console.WriteLine("TOTAL FINAL:S/" + totalFinal);
+            Console.WriteLine("");
             Console.WriteLine("========================================");
             Console.WriteLine("DESEA ALGÚN COMPROBANTE DE PAGO (S/N)?: ");
             IMPUT12 = Console.ReadLine().ToUpper();
@@ -651,6 +658,9 @@ namespace PROYECTOFINAL
             gananciasDia += totalFinal;
             GUARDARSESION();
             GUARDARVENTAHISTORIAL(Cliente, historialTotal, totalFinal, metodoPago);
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void MPCREDITO(double totalFinal, string historialTotal)
         {
@@ -695,6 +705,9 @@ namespace PROYECTOFINAL
             }
             double aCuenta = 0;
             FORMATODEUDA(IMPUT8, totalFinal, "Credito", DIASPAGO, historialTotal,aCuenta);
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void MPYAPE_TRANSFERENCIA(double SUBTOTAL, double costoDelivery, string direccion, string historialTotal, string metodoPago)
         {
@@ -739,6 +752,9 @@ namespace PROYECTOFINAL
 
             GUARDARSESION();
             GUARDARVENTAHISTORIAL(Cliente, historialTotal, totalFinal, metodoPago);
+            Console.WriteLine("Presione cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.Clear();
         }
         public static void MPEFECTIVO( double SUBTOTAL, double costoDelivery, string direccion, string historialTotal)
         {
@@ -844,11 +860,49 @@ namespace PROYECTOFINAL
                 case 2:
                     //VARIABLES LOCALES
                     string OPCC;
+                    double DINPAG;
+                    double Vuelto;
                     string Cliente = "CLIENTE GENERAL";
-
                     Console.WriteLine("DELIVERY:S/" + costoDelivery);
                     Console.WriteLine("DIRECCIÓN:" + direccion);
                     Console.WriteLine("TOTAL FINAL:S/" + totalFinal);
+                    Console.WriteLine("=================================");
+                    int filaValidacion = Console.CursorTop;
+
+                    while (true)
+                    {
+                        for (int i = 0; i < 6; i++)
+                        {
+                            Console.SetCursorPosition(0, filaValidacion + i);
+                            Console.Write(new string(' ', Console.WindowWidth));
+                        }
+                        // Volver al inicio de la zona de validación
+                        Console.SetCursorPosition(0, filaValidacion);
+
+
+                        Console.Write("INGRESE EL DINERO DADO POR EL CLIENTE: ");
+                        string input = Console.ReadLine();
+
+                        if (SALIR(input))
+                        {
+                            Console.WriteLine("Operación cancelada.");
+                            return;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(input) &&
+                            double.TryParse(input, out DINPAG) &&
+                            DINPAG >= totalFinal)
+                        {
+                            break;
+                        }
+
+                        Console.WriteLine("Ingrese una cantidad válida....");
+                        Console.WriteLine("Recuerde que está en pago completo.");
+                        Console.WriteLine("Si desea regresar escriba SALIR.");
+                    }
+
+                    Vuelto = DINPAG - totalFinal;
+                    Console.WriteLine($"VUELTO: S/ {Vuelto:F2}");
                     Console.WriteLine("=================================");
                     Console.WriteLine("DESEA ALGÚN COMPROBANTE DE PAGO (S/N)?: ");
                     OPCC = Console.ReadLine().ToUpper();
@@ -880,7 +934,11 @@ namespace PROYECTOFINAL
                     gananciasDia += totalFinal;
                     GUARDARSESION();
                     GUARDARVENTAHISTORIAL(Cliente, historialTotal, totalFinal, metodoPago);
+                    Console.WriteLine("Presione cualquier tecla para continuar...");
+                    Console.ReadKey();
+                    Console.Clear();
                     break;
+
             }
         }
         public static void FORMATODEUDA(string cliente, double totalFinal,string tipoCredito, int diasCredito, string historialTotal, double aCuenta)
@@ -1820,9 +1878,6 @@ namespace PROYECTOFINAL
 
             if (!encontrado)
                 Console.WriteLine("Producto no encontrado.");
-            Console.WriteLine("Presione cualquier tecla para continuar...");
-            Console.ReadKey();
-            Console.Clear();
         }
         public static void MODIFICARPROD()
         {
@@ -1831,12 +1886,17 @@ namespace PROYECTOFINAL
             if (!File.Exists(archivo))
             {
                 Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                Console.WriteLine("Presione cualquier tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
                 return;
             }
 
             string[] lineas = File.ReadAllLines(archivo);
 
             Console.WriteLine("========== MODIFICAR PRODUCTO ==========");
+            Console.WriteLine(" ");
+            BUSCARPROD();
             Console.WriteLine("Escribe 'SALIR' para cancelar.");
             Console.Write("INGRESE EL ID DEL PRODUCTO A MODIFICAR.... SOLO ID....: ");
             string idBuscar = Console.ReadLine();
@@ -1845,7 +1905,7 @@ namespace PROYECTOFINAL
 
             int numeroBuscado;
             while (string.IsNullOrWhiteSpace(idBuscar) ||
-                   !int.TryParse(idBuscar.Trim().ToUpper().Substring(1), out numeroBuscado))
+                   !int.TryParse(idBuscar.Trim().ToUpper(), out numeroBuscado))
             {
                 Console.Write("ID inválido. INGRESE UN ID: ");
                 idBuscar = Console.ReadLine();
@@ -1956,9 +2016,6 @@ namespace PROYECTOFINAL
             {
                 Console.WriteLine("No se encontró un producto con ese ID.");
             }
-            Console.WriteLine("Presione cualquier tecla para continuar...");
-            Console.ReadKey();
-            Console.Clear();
         }
         public static void ELIMINARPRODUCTO()
         {
@@ -1967,6 +2024,9 @@ namespace PROYECTOFINAL
             if (!File.Exists(archivo))
             {
                 Console.WriteLine("No existe el archivo BASEDATOS.txt");
+                Console.WriteLine("Presione cualquier tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
                 return;
             }
 
@@ -2071,9 +2131,6 @@ namespace PROYECTOFINAL
 
             if (!encontrado)
                 Console.WriteLine("No se encontró un producto con ese ID.");
-            Console.WriteLine("Presione cualquier tecla para continuar...");
-            Console.ReadKey();
-            Console.Clear();
         }
         public static void MENUPROD()
         {
@@ -2128,11 +2185,10 @@ namespace PROYECTOFINAL
 
                     case 5:
                         Console.WriteLine("Volviendo al menú principal...");
+                        Console.WriteLine("\nPresione una tecla para continuar...");
+                        Console.ReadKey();
                         break;
                 }
-
-                Console.WriteLine("\nPresione una tecla para continuar...");
-                Console.ReadKey();
 
             } while (opcion != 5);
         }
@@ -2146,6 +2202,9 @@ namespace PROYECTOFINAL
                 Console.WriteLine("===========================");
                 Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
                 Console.WriteLine("===========================");
+                Console.WriteLine("Presione cualquier tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
                 return;
             }
 
@@ -2221,10 +2280,7 @@ namespace PROYECTOFINAL
                 }
             }
 
-            Console.WriteLine("============================");
-            Console.WriteLine("Presione cualquier tecla para continuar...");
-            Console.ReadKey();
-            Console.Clear();
+
         }
         public static string METODOPAGODEUDA()
         {
@@ -2271,6 +2327,9 @@ namespace PROYECTOFINAL
                 Console.WriteLine("===========================");
                 Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
                 Console.WriteLine("===========================");
+                Console.WriteLine("Presione cualquier tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
                 return;
             }
 
@@ -2472,6 +2531,7 @@ namespace PROYECTOFINAL
                     totalVentas++;
                     gananciasDia += totalFinal;
                     GUARDARSESION();
+                    Console.WriteLine("CANCELACIÓN TOTAL DE LA DEUDA.....");
                     TIPOCOMPROBANTE(historialCompra, totalFinal,metodoPago,0, "",totalFinal);
 
                 }
@@ -2480,9 +2540,7 @@ namespace PROYECTOFINAL
             {
                 Console.WriteLine("Cliente no encontrado: " + clienteBuscar);
             }
-            Console.WriteLine("Presione cualquier tecla para continuar...");
-            Console.ReadKey();
-            Console.Clear();
+
         }
         public static void BUSCARDEUDA(string archivoDeudores, string nombre)
         {
@@ -2492,6 +2550,9 @@ namespace PROYECTOFINAL
                 Console.WriteLine("===========================");
                 Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
                 Console.WriteLine("===========================");
+                Console.WriteLine("Presione cualquier tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
                 return;
             }
 
@@ -2561,7 +2622,12 @@ namespace PROYECTOFINAL
                 Console.WriteLine("===========================");
                 Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
                 Console.WriteLine("===========================");
+                Console.WriteLine("Presione cualquier tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
                 return;
+                
+
             }
 
 
@@ -2572,6 +2638,9 @@ namespace PROYECTOFINAL
                 Console.WriteLine("===========================");
                 Console.WriteLine("NO HAY DEUDORES REGISTRADOS");
                 Console.WriteLine("===========================");
+                Console.WriteLine("Presione cualquier tecla para continuar...");
+                Console.ReadKey();
+                Console.Clear();
                 return;
             }
             // Variables para acumular datos de cada bloque
@@ -2604,57 +2673,68 @@ namespace PROYECTOFINAL
         }
         public static void MENUDEUDAS()
         {
-            Console.WriteLine("======================");
-            Console.WriteLine("====== OPCIONES ======");
-            Console.WriteLine("======================");
-            Console.WriteLine("1. Ver todos deudores");
-            Console.WriteLine("2. Buscar deudor");
-            Console.WriteLine("3. Abonar / Cancelar");
-            Console.WriteLine("4. Ver deudas vencidas");
-            Console.WriteLine("5. Salir");
-
-            Console.Write("Seleccione opción: ");
-            string opcion = Console.ReadLine();
-            if (opcion.ToUpper() == "SALIR") return;
-
-            int opcionG;
-            // Valida que sea un número entre 1 y 5
-            while (!int.TryParse(opcion, out opcionG) || opcionG < 1 || opcionG > 5)
+            while (true)
             {
-                Console.WriteLine("Ingrese una opción válida (1-5):");
-                opcion = Console.ReadLine();
-                if (opcion.ToUpper() == "SALIR") return;
-            }
 
-            switch (opcionG)
-            {
-                case 1:
-                    VERDEUDORES(archivoDeudores); // Muestra todos los deudores
-                    break;
-                case 2:
-                    Console.Write("INGRESE EL NOMBRE DEL CLIENTE A BUSCAR: ");
-                    string nombre = Console.ReadLine();
+                Console.WriteLine("======================");
+                Console.WriteLine("====== OPCIONES ======");
+                Console.WriteLine("======================");
+                Console.WriteLine("1. Ver todos deudores");
+                Console.WriteLine("2. Buscar deudor");
+                Console.WriteLine("3. Abonar / Cancelar");
+                Console.WriteLine("4. Ver deudas vencidas");
+                Console.WriteLine("5. Salir");
 
-                    if (nombre.ToUpper() == "SALIR")
+                Console.Write("Seleccione opción: ");
+                string opcion = Console.ReadLine();
+
+                if (opcion.ToUpper() == "SALIR")
+                    return;
+
+                int opcionG;
+
+                while (!int.TryParse(opcion, out opcionG) || opcionG < 1 || opcionG > 5)
+                {
+                    Console.Write("Ingrese una opción válida (1-5): ");
+                    opcion = Console.ReadLine();
+
+                    if (opcion.ToUpper() == "SALIR")
                         return;
+                }
 
-                    nombre = SELECCIONARCLIENTE(archivoDeudores, nombre);
+                switch (opcionG)
+                {
+                    case 1:
+                        VERDEUDORES(archivoDeudores);
+                        break;
 
-                    if (nombre == null)
-                        return;
+                    case 2:
+                        Console.Write("INGRESE EL NOMBRE DEL CLIENTE A BUSCAR: ");
+                        string nombre = Console.ReadLine();
 
-                    BUSCARDEUDA(archivoDeudores, nombre); // Busca un deudor específico
-                    break;
-                case 3:
-                    ABONARDEUDA(archivoDeudores); // Registra un abono o cancelación
-                    break;
-                case 4:
-                    DEUDASVENCIDAS(archivoDeudores); // Muestra deudas con fecha vencida
-                    break;
-                case 5:
-                    break; // Sale del menú
+                        if (nombre.ToUpper() == "SALIR")
+                            break;
+
+                        nombre = SELECCIONARCLIENTE(archivoDeudores, nombre);
+
+                        if (nombre != null)
+                            BUSCARDEUDA(archivoDeudores, nombre);
+                        break;
+
+                    case 3:
+                        ABONARDEUDA(archivoDeudores);
+                        break;
+
+                    case 4:
+                        DEUDASVENCIDAS(archivoDeudores);
+                        break;
+
+                    case 5:
+                        return;   // Sale del menú de deudas y vuelve al menú principal
+                }
             }
         }
+        
         public static string SELECCIONARCLIENTE(string archivoDeudores, string nombre)
         {
             List<string> clientes = new List<string>();
@@ -2720,7 +2800,7 @@ namespace PROYECTOFINAL
             
             while (true) // 🔴 SISTEMA SIEMPRE ENCENDIDO
             {
-               
+                Console.Clear();
                 Console.WriteLine("===============================");
                 Console.WriteLine("= SISTEMA DE VENTAS / COMPRAS= ");
                 Console.WriteLine("===============================");
